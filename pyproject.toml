@@ -1,0 +1,18 @@
+[project]
+name = "PacMan"
+version = "0.1.0"
+description = "Pac-Man game"
+readme = "README.md"
+dependencies = [
+	"mazegenerator",
+]
+
+[dependency-groups]
+dev = [
+	"mypy",
+	"flake8",
+	"pytest",
+]
+
+[tool.uv.sources]
+mazegenerator = { path = "mazegenerator-2.1.0-py3-none-any.whl" }
