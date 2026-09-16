@@ -7,8 +7,8 @@ cases where forcing the real generator to misbehave isn't practical.
 
 import pytest
 
-from maze import Maze
-from maze_integration import MazeAdapter, MazeGenerationError
+from pacman.maze import Maze
+from pacman.maze_integration import MazeAdapter, MazeGenerationError
 
 
 def test_generate_real_maze() -> None:
@@ -39,7 +39,9 @@ def test_generator_exception_is_wrapped(
         def __init__(self, *args: object, **kwargs: object) -> None:
             raise RuntimeError("boom")
 
-    monkeypatch.setattr("maze_integration.MazeGenerator", BrokenGenerator)
+    monkeypatch.setattr(
+        "pacman.maze_integration.MazeGenerator", BrokenGenerator
+    )
 
     adapter = MazeAdapter(15, 15)
 
@@ -54,7 +56,9 @@ def test_empty_maze_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
         def __init__(self, *args: object, **kwargs: object) -> None:
             self.maze: list[list[int]] = []
 
-    monkeypatch.setattr("maze_integration.MazeGenerator", EmptyGenerator)
+    monkeypatch.setattr(
+        "pacman.maze_integration.MazeGenerator", EmptyGenerator
+    )
 
     with pytest.raises(MazeGenerationError):
         MazeAdapter(15, 15).generate()
@@ -72,7 +76,9 @@ def test_wrong_size_maze_is_rejected(
                 [15, 15],
             ]
 
-    monkeypatch.setattr("maze_integration.MazeGenerator", InvalidGenerator)
+    monkeypatch.setattr(
+        "pacman.maze_integration.MazeGenerator", InvalidGenerator
+    )
 
     with pytest.raises(MazeGenerationError):
         MazeAdapter(15, 15).generate()

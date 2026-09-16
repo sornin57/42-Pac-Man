@@ -8,7 +8,7 @@ output to our validated Maze model.
 
 from mazegenerator import MazeGenerator
 
-from maze import Maze
+from pacman.maze import Maze
 
 
 class MazeGenerationError(Exception):

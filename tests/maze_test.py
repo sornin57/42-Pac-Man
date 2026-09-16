@@ -8,7 +8,7 @@ move to its own test file later.
 
 import pytest
 
-from maze import Direction, Maze
+from pacman.maze import Direction, Maze
 
 
 def _valid_cells() -> list[list[int]]:
