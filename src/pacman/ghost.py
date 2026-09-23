@@ -16,11 +16,11 @@ class Ghost:
 		self.position = position
 		self.mode = GhostMode.SCATTER
 
-	def move(self, ...):
+	def move(self):
 		# Implement ghost movement logic here
 		pass
 
-	TODO: add method to calculate current difficulty level based on level
+	# TODO: add method to calculate current difficulty level based on level
 
 
 class Blinky(Ghost):
