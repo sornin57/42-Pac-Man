@@ -1,10 +1,89 @@
 _This project has been created as part of the 42 curriculum by msornin, nkoveshn._
 
-# Description
+# Pac-Man
+
+This project is a Python implementation of Pac-Man created as part of
+the 42 curriculum. It uses an assigned external maze generator through
+an adapter so that the game logic remains independent from the package.
 
 
+# Installation
 
-# Instruction
+Python 3.10 or newer is required.
+
+```bash
+make install
+```
+
+
+# Usage
+
+Run the project with a configuration file:
+
+```bash
+python3 pac-man.py config/default.json
+```
+
+The same command is available through the Makefile:
+
+```bash
+make run
+```
+
+The game loop is not connected yet. For now, the command loads,
+validates, and displays the resulting configuration.
+
+
+# Configuration
+
+Configuration is read from a JSON file. Lines may contain comments
+starting with `#`. Unknown keys are ignored. Missing or invalid values
+use safe defaults, and numeric values outside their accepted range are
+clamped.
+
+Example:
+
+```json
+{
+  "lives": 3,
+  "seed": 42,
+  "level_max_time": 300,
+  "levels": [
+    {
+      "width": 21,
+      "height": 21
+    }
+  ]
+}
+```
+
+Supported keys:
+
+- `highscore_filename`: path to the highscore file;
+- `lives`: number of player lives;
+- `points_per_pacgum`: points awarded for a pacgum;
+- `points_per_super_pacgum`: points awarded for a super-pacgum;
+- `points_per_ghost`: points awarded for eating a ghost;
+- `seed`: maze generation seed;
+- `level_max_time`: maximum level duration in seconds;
+- `levels`: list of level dimensions.
+
+
+# Development
+
+Run all style, type, and unit checks:
+
+```bash
+make check
+```
+
+Individual commands are also available:
+
+```bash
+make lint
+make test
+make clean
+```
 
 
 # Resources
@@ -66,9 +145,8 @@ for name, method in inspect.getmembers(
 This approach allows MazeAdapter to be adjusted to the assigned generator interface while keeping the rest of the project independent from the external package.
 
 # TODO
-A Configuration section explaining the config file structure and default values.
-• A Highscore section explaining how the highscore system works and why you decided to implement it this way.
-• A Maze Generation section explaining how the assigned A-Maze-ing package is used to generate mazes.
-• an Implementation section with a technical summary of your implementation.
-• A General Software Architecture section, with high-level overview of the soft- ware architecture (modules, classes, and their relationships).
-• A Project Management section, with a brief overview of how you managed the project and a link to the dedicated project management directory.
+
+- Add a Highscore section.
+- Add an implementation summary.
+- Add a general software architecture overview.
+- Add a project management overview and link to its documentation.
