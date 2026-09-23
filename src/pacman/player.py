@@ -7,4 +7,3 @@ class Player:
         self.score = 0
         self.lives = 3
         self.powered_up = False  # TODO: maybe should be a timer
-

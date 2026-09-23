@@ -16,7 +16,7 @@ class Ghost:
         self.position = position
         self.mode = GhostMode.SCATTER
 
-    def move(self):
+    def move(self) -> None:
         # Implement ghost movement logic here
         pass
 
@@ -41,4 +41,3 @@ class Inky(Ghost):
 class Clyde(Ghost):
     def __init__(self, position: tuple[int, int]):
         super().__init__("Clyde", "Orange", position)
-
