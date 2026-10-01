@@ -7,6 +7,41 @@ the 42 curriculum. It uses an assigned external maze generator through
 an adapter so that the game logic remains independent from the package.
 
 
+# Quick start
+
+Install the project and its development tools:
+
+```bash
+make install
+```
+
+Run the current project entry point:
+
+```bash
+make run
+```
+
+Run the interactive terminal demonstration for ghost movement:
+
+```bash
+make demo-ghost
+```
+
+Run linting, static type checking, and all tests:
+
+```bash
+make check
+```
+
+The terminal demonstration uses the following controls:
+
+- `Z` or `W`: move Pac-Man up;
+- `S`: move Pac-Man down;
+- `Q` or `A`: move Pac-Man left;
+- `D`: move Pac-Man right;
+- `X`: exit the demonstration.
+
+
 # Installation
 
 Python 3.10 or newer is required.
@@ -14,6 +49,9 @@ Python 3.10 or newer is required.
 ```bash
 make install
 ```
+
+The installation rule installs `flake8`, `mypy`, `pytest`, and the
+assigned `mazegenerator` wheel included in the repository.
 
 
 # Usage
@@ -32,6 +70,51 @@ make run
 
 The game loop is not connected yet. For now, the command loads,
 validates, and displays the resulting configuration.
+
+
+# Current status
+
+The project currently includes:
+
+- a validated internal `Maze` model;
+- an adapter for the assigned A-Maze-ing package;
+- a safe JSON configuration parser;
+- initial `Game`, `Level`, `Player`, and `Ghost` classes;
+- basic shortest-path movement for Blinky;
+- unit and integration tests;
+- a terminal tool for manually testing ghost movement.
+
+Pygame rendering, the complete game loop, collisions, scores, remaining
+ghost strategies, menus, and highscores are not connected yet.
+
+
+# Architecture
+
+The main objects are separated by responsibility:
+
+```text
+pac-man.py
+    |
+    v
+GameConfig
+    |
+    v
+Game
+|-- Player
+`-- Level
+    |-- Maze
+    |-- pacgums
+    `-- Ghosts
+```
+
+- `pac-man.py` reads the command-line argument and loads configuration.
+- `GameConfig` contains validated and immutable settings.
+- `Game` will coordinate the game rules and current state.
+- `Player` stores the player's position, score, lives, and power state.
+- `Level` groups the maze, pacgums, super-pacgums, and ghosts.
+- `Maze` validates walls and provides neighbors and shortest paths.
+- `Ghost` contains behavior shared by the four ghost classes.
+- `MazeAdapter` is the only component that imports `mazegenerator`.
 
 
 # Configuration
@@ -86,11 +169,48 @@ make clean
 ```
 
 
-# Resources
+## Ghost movement demo
+
+`tools/ghost_demo.py` is a development aid, not the final game UI. It
+draws the maze and its walls in the terminal:
+
+```text
++---+---+---+---+---+
+| B                 |
++   +   +   +   +   +
+|                 P |
++---+---+---+---+---+
+```
+
+`P` represents Pac-Man, `B` represents Blinky, and `X` is displayed
+when they occupy the same cell. After each valid Pac-Man movement,
+Blinky asks `Maze.shortest_path()` for a route and advances by exactly
+one cell.
+
+The demo deliberately has no dependency on Pygame. It tests game logic
+independently from future rendering code.
 
 
+## Tests
 
-# Additional sections
+The test suite currently covers:
+
+- maze construction, validation, walls, and neighbors;
+- integration with the external maze generator;
+- configuration parsing, defaults, limits, and malformed files;
+- Blinky's initial state and basic movement toward Pac-Man.
+
+Tests can be run separately with:
+
+```bash
+make test
+```
+
+The ghost tests alone can be run with:
+
+```bash
+PYTHONPATH=src pytest tests/test_ghost.py -v
+```
 
 ## Maze Generation
 

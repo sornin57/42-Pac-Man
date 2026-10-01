@@ -1,6 +1,8 @@
-
-
 from enum import Enum
+
+from pacman.maze import Maze
+
+Position = tuple[int, int]
 
 
 class GhostMode(Enum):
@@ -10,34 +12,40 @@ class GhostMode(Enum):
 
 
 class Ghost:
-    def __init__(self, name: str, color: str, position: tuple[int, int]):
+    def __init__(self, name: str, color: str, position: Position) -> None:
         self.name = name
         self.color = color
         self.position = position
         self.mode = GhostMode.SCATTER
 
-    def move(self) -> None:
-        # Implement ghost movement logic here
-        pass
+    def get_target(self, player_position: Position) -> Position:
+        return player_position
 
-    # TODO: add method to calculate current difficulty level based on level
+    def move(self, maze: Maze, player_position: Position) -> Position:
+        target = self.get_target(player_position)
+        path = maze.shortest_path(self.position, target)
+
+        if len(path) > 1:
+            self.position = path[1]
+
+        return self.position
 
 
 class Blinky(Ghost):
-    def __init__(self, position: tuple[int, int]):
+    def __init__(self, position: Position) -> None:
         super().__init__("Blinky", "Red", position)
 
 
 class Pinky(Ghost):
-    def __init__(self, position: tuple[int, int]):
+    def __init__(self, position: Position) -> None:
         super().__init__("Pinky", "Pink", position)
 
 
 class Inky(Ghost):
-    def __init__(self, position: tuple[int, int]):
+    def __init__(self, position: Position) -> None:
         super().__init__("Inky", "Cyan", position)
 
 
 class Clyde(Ghost):
-    def __init__(self, position: tuple[int, int]):
+    def __init__(self, position: Position) -> None:
         super().__init__("Clyde", "Orange", position)
