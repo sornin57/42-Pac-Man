@@ -153,7 +153,8 @@ class Maze:
         """
         x = self.width // 2
         y = self.height // 2
-        # TODO: check the coords are valid and not part of blocked cells, if so, find the nearest valid cell
+        # TODO: check the coords are valid and not part of blocked cells,
+        # if so, find the nearest valid cell
         return x, y
 
     def is_isolated_cell(self, x: int, y: int) -> bool:
