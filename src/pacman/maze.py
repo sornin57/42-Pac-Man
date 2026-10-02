@@ -145,6 +145,17 @@ class Maze:
                 f"{self.width}x{self.height} maze"
             )
 
+    def get_center(self) -> tuple[int, int]:
+        """Return the coordinates of the maze's center cell.
+
+        Returns:
+            (x, y) coordinates of the center cell.
+        """
+        x = self.width // 2
+        y = self.height // 2
+        # TODO: check the coords are valid and not part of blocked cells, if so, find the nearest valid cell
+        return x, y
+
     def is_isolated_cell(self, x: int, y: int) -> bool:
         """Return True if the cell at (x, y) is a fully-walled '42' cell.
 
