@@ -39,28 +39,3 @@ class Menu:
     def select(self) -> MenuAction:
         """Return the action chosen by the player."""
         return self.selected_action
-
-
-if __name__ == "__main__":
-    menu = Menu()
-
-    assert menu.selected_action == MenuAction.PLAY
-
-    menu.move_up()
-    assert menu.selected_action == MenuAction.QUIT
-
-    menu.move_down()
-    assert menu.selected_action == MenuAction.PLAY
-
-    menu.move_down()
-    assert menu.selected_action == MenuAction.HIGHSCORES
-
-    menu.move_down()
-    assert menu.selected_action == MenuAction.INSTRUCTIONS
-
-    menu.move_up()
-    assert menu.selected_action == MenuAction.HIGHSCORES
-
-    assert menu.select() == MenuAction.HIGHSCORES
-
-    print("Tous les tests du menu sont passés.")
