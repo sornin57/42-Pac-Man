@@ -21,6 +21,25 @@ class Ghost:
     def get_target(self, player_position: Position) -> Position:
         return player_position
 
+    def flee(self, maze: Maze, player_position: Position) -> Position:
+        """Move to the accessible neighbor farthest from the player."""
+        x, y = self.position
+        pacman_x, pacman_y = player_position
+        neighbors = maze.get_neighbors(x, y)
+
+        best_position = self.position
+        best_distance = -1
+
+        for nx, ny in neighbors:
+            distance = abs(nx - pacman_x) + abs(ny - pacman_y)
+
+            if distance > best_distance:
+                best_distance = distance
+                best_position = (nx, ny)
+
+        self.position = best_position
+        return self.position
+
     def move(self, maze: Maze, player_position: Position) -> Position:
         target = self.get_target(player_position)
         path = maze.shortest_path(self.position, target)
