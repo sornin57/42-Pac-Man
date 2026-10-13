@@ -1,9 +1,10 @@
 import pytest
+from pathlib import Path
 
 from pacman.highscore import Highscore, add_score, load_scores, save_scores
 
 
-def test_save_and_load_scores(tmp_path):
+def test_save_and_load_scores(tmp_path: Path) -> None:
     path = tmp_path / "highscores.json"
     scores = [Highscore("Mathieu", 1200), Highscore("Nadia", 850)]
 
@@ -12,7 +13,7 @@ def test_save_and_load_scores(tmp_path):
     assert load_scores(str(path)) == scores
 
 
-def test_add_score_sorts_and_keeps_top_ten():
+def test_add_score_sorts_and_keeps_top_ten() -> None:
     scores = [Highscore(str(number), number) for number in range(10)]
 
     result = add_score(scores, Highscore("Best", 20))
@@ -23,13 +24,13 @@ def test_add_score_sorts_and_keeps_top_ten():
     assert scores[0] == Highscore("0", 0)
 
 
-def test_missing_file_returns_empty_list(tmp_path):
+def test_missing_file_returns_empty_list(tmp_path: Path) -> None:
     path = tmp_path / "missing.json"
 
     assert load_scores(str(path)) == []
 
 
-def test_invalid_json_raises_clear_error(tmp_path):
+def test_invalid_json_raises_clear_error(tmp_path: Path) -> None:
     path = tmp_path / "highscores.json"
     path.write_text("not JSON", encoding="utf-8")
 
