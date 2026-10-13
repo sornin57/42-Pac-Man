@@ -3,7 +3,7 @@
 from pacman.maze import Maze
 from pacman.maze_integration import MazeAdapter
 from pacman.config.models import GameConfig
-from pacman.ghost import Ghost
+from pacman.ghost import Blinky, Clyde, Ghost, Inky, Pinky
 
 
 class Level:
@@ -16,23 +16,28 @@ class Level:
 
         self.pacgums = self.generate_pacgums()
         self.superpacgums = self.generate_superpacgums()
-        self.ghosts: list[Ghost] = []
+        self.ghosts: list[Ghost] = self._spawn_ghosts()
+
+    # Hard cap on generated size once level_number runs past config.levels
+    # and starts growing by 1 cell/side each level. 41 * a renderer's
+    # default 24px cell is ~1000px, which fits comfortably on most
+    # screens without needing to know the actual screen size here.
+    MAX_SIZE = 41
 
     @staticmethod
     def _generate_maze(
         level_number: int, config: GameConfig,
     ) -> Maze:
-        level_config = config.levels[
-            min(level_number, len(config.levels) - 1)
-        ]
+        last_index = len(config.levels) - 1
+        level_config = config.levels[min(level_number, last_index)]
+        overflow = max(0, level_number - last_index)
+
+        width = min(level_config.width + overflow, Level.MAX_SIZE)
+        height = min(level_config.height + overflow, Level.MAX_SIZE)
 
         seed = config.seed if level_number == 0 else 0
 
-        return MazeAdapter(
-            level_config.width,
-            level_config.height,
-            seed,
-        ).generate()
+        return MazeAdapter(width, height, seed).generate()
 
     def _corners(self) -> set[tuple[int, int]]:
         """Return the maze's 4 corner cells (where super-pacgums live)."""
@@ -42,6 +47,20 @@ class Level:
             (0, self.height - 1),
             (self.width - 1, self.height - 1),
         }
+
+    def _spawn_ghosts(self) -> list[Ghost]:
+        """Place one of each ghost in a corner of the maze (VI.1)."""
+        corners = [
+            (0, 0),
+            (self.width - 1, 0),
+            (0, self.height - 1),
+            (self.width - 1, self.height - 1),
+        ]
+        ghost_classes = [Blinky, Pinky, Inky, Clyde]
+        return [
+            ghost_class(corner)
+            for ghost_class, corner in zip(ghost_classes, corners)
+        ]
 
     def generate_pacgums(self) -> set[tuple[int, int]]:
         """Place a pacgum in every corridor cell except the special ones.
@@ -84,18 +103,29 @@ class Level:
             return True
         return False
 
-    def add_ghost(self, ghost: Ghost) -> None:
-        # TODO: call a method from Ghost
-        pass
-
     def ghost_eaten(self, ghost: Ghost) -> None:
-        """Take an eaten ghost out of play.
+        """Turn an eaten ghost into eyes heading back to its corner.
 
-        Respawning it (after the usual delay) is handled elsewhere,
-        via `add_ghost`.
+        It stays in `ghosts`: once home it waits, then gets released
+        (see GameScreen).
         """
-        if ghost in self.ghosts:
-            self.ghosts.remove(ghost)
+        ghost.get_eaten()
+
+    def reset_ghosts(self) -> None:
+        """Put every ghost (even eaten ones) back in its corner.
+
+        Used when the player loses a life: everyone resets to their
+        starting formation, same as the original game.
+        """
+        for ghost in self.ghosts:
+            ghost.reset()
+
+    def restart(self) -> None:
+        """Start this level over on the same maze: every dot back,
+        every ghost home."""
+        self.pacgums = self.generate_pacgums()
+        self.superpacgums = self.generate_superpacgums()
+        self.reset_ghosts()
 
     def is_complete(self) -> bool:
         """Return True once every pacgum and super-pacgum is eaten."""

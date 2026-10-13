@@ -264,9 +264,56 @@ for name, method in inspect.getmembers(
 ```
 This approach allows MazeAdapter to be adjusted to the assigned generator interface while keeping the rest of the project independent from the external package.
 
+
+### Typography and Arcade Inspiration
+
+The visual design of Pac-Man is inspired by classic arcade games of the late 1970s and early 1980s. We wanted to preserve their recognizable pixel-based appearance while keeping the interface clear and readable on modern screens.
+
+We chose two fonts with complementary purposes:
+
+- **Press Start 2P** — used for titles, menus, and important messages such as *GAME OVER* and *VICTORY*. Its distinctive pixelated lettering recreates the atmosphere of early arcade machines.
+- **Silkscreen** — used for scores, lives, timers, and other interface elements. Its simpler, more compact characters are easier to read at smaller sizes.
+
+Both fonts are available under the SIL Open Font License (OFL), allowing them to be bundled with the game under the license's conditions.
+
+#### A Brief History of Arcade Typography
+
+Early arcade machines had very limited memory and graphical capabilities. Unlike modern games, which can load and render scalable font files, many arcade systems represented characters as small patterns of pixels stored in memory.
+
+Letters and numbers were often designed using fixed-size bitmap grids, such as 8 × 8 pixels. Each character was defined by which pixels should be illuminated, allowing the hardware to display text efficiently without storing a separate image for every word.
+
+These technical limitations shaped the visual identity of early video games: blocky letters, simple geometric forms, limited colors, and uppercase text became characteristic features of arcade typography.
+
+Modern pixel fonts recreate this appearance intentionally. By combining Press Start 2P with Silkscreen, we pay tribute to the history of arcade games while maintaining a practical, readable interface.
+
+**Font sources:**
+- [Press Start 2P — Google Fonts](https://fonts.google.com/specimen/Press+Start+2P)
+- [Silkscreen — Google Fonts](https://fonts.google.com/specimen/Silkscreen)
+
 # TODO
 
 - Add a Highscore section.
 - Add an implementation summary.
 - Add a general software architecture overview.
 - Add a project management overview and link to its documentation.
+
+# Resources
+
+Video tutorial  "Pygame in 18 Minutes"
+https://www.youtube.com/watch?v=blLLtdv4tvo
+
+Background music "8bit Music for Game" by freesound_community (Freesound user annoyedCactus)
+https://pixabay.com/sound-effects/musical-8bit-music-for-game-68698/
+Licensed under the Pixabay Content License (attribution not required, credited here anyway)
+
+
+### Third-Party Assets and Licenses
+
+This project uses the following open-source fonts:
+
+- **Press Start 2P** — available from [Google Fonts](https://fonts.google.com/specimen/Press+Start+2P).
+- **Silkscreen** — available from [Google Fonts](https://fonts.google.com/specimen/Silkscreen).
+
+Both fonts are distributed under the **SIL Open Font License 1.1 (OFL)**. Their original copyright notices and license texts are preserved in `src/pacman/assets/fonts/`.
+
+All third-party assets are used in accordance with their respective licenses.
