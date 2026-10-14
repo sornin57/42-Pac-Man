@@ -290,6 +290,20 @@ Modern pixel fonts recreate this appearance intentionally. By combining Press St
 - [Press Start 2P — Google Fonts](https://fonts.google.com/specimen/Press+Start+2P)
 - [Silkscreen — Google Fonts](https://fonts.google.com/specimen/Silkscreen)
 
+### Pac-Man Mouth Animation
+
+**The problem.** In the first version, Pac-Man's mouth looked jerky. There were only two pictures per direction (mouth open and mouth closed), and the game switched between them each time Pac-Man moved one cell, every 0.15 seconds. The mouth therefore snapped open and shut with nothing in between, and its rhythm was tied to the movement speed rather than to how an animation should look.
+
+**The solution.** The animation now depends on a timer, not on movement:
+
+- **More frames.** Five pictures, from closed (`pacman_0.png`) to wide open (`pacman_4.png`). They are played back and forth, `0 1 2 3 4 3 2 1 …`, so five pictures give a smooth eight-step chomp.
+- **Chosen by the clock.** Every time the screen is redrawn, the current frame is picked from the elapsed time:
+  `frame = CHOMP[int(time / FRAME_TIME) % len(CHOMP)]`. The mouth keeps chomping smoothly between two cell steps, and the speed is set by one constant (`FRAME_TIME`, 0.05 s per frame) in `game_screen.py`.
+- **Still when stopped.** When Pac-Man is not moving (against a wall, before the first move, after losing a life), the mouth stays half open instead of chomping at the wall.
+
+**One direction, rotated.** Only the east-facing frames exist as image files. When the game starts, the renderer turns each one to face north, south and west with exact 90-degree rotations, which only move pixels around, so the pixel art stays sharp. The turned copies are stored under the same names the drawing code already used (`pacman_north_2`, …), so nothing else in the game had to change.
+
+
 # TODO
 
 - Add a Highscore section.

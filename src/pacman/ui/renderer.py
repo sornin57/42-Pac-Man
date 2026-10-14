@@ -18,6 +18,9 @@ Color = tuple[int, int, int]
 
 ASSET_DIR = Path(__file__).resolve().parent / "assets"
 SPRITE_DIR = ASSET_DIR / "sprites"
+# pacman_0.png ... pacman_4.png: east-facing frames, closed -> wide open.
+# The other directions are made from them at load time.
+PACMAN_FRAMES = 5
 SOUND_DIR = ASSET_DIR / "soundes"
 FONT_DIR = ASSET_DIR / "fonts"
 # Big phrases ("PAC-MAN", "GAME OVER", "READY!") and the HUD numbers.
@@ -73,7 +76,7 @@ HUD_ZONE = _bg_zone(6, 6, 393, 38)
 
 # HUD items, left to right; icons made by tools/make_hud_icons.py.
 HUD_ICONS = ("hud_level", "hud_lives", "hud_score", "hud_time")
-HUD_ICON_SIZE = 35
+HUD_ICON_SIZE = 32  # 2x the 16px pixel-art icons: keep it a multiple
 HUD_FONT_SIZE = 18
 HUD_SLOT_PADDING = 14  # from a slot's left edge to its icon
 HUD_ICON_GAP = 8  # from an icon to its number
@@ -92,10 +95,9 @@ MENU_SELECTED_COLOR: Color = (255, 220, 0)
 MENU_BACKDROP_ALPHA = 160  # how much a menu dims the screen behind it
 
 
-def pacman_sprite_name(direction: Direction, mouth_open: bool) -> str:
+def pacman_sprite_name(direction: Direction, frame: int) -> str:
     """Return the sprite key for Pac-Man facing `direction`."""
-    suffix = "open" if mouth_open else "closed"
-    return f"pacman_{direction.name.lower()}_{suffix}"
+    return f"pacman_{direction.name.lower()}_{frame}"
 
 
 def ghost_sprite_name(
@@ -139,6 +141,13 @@ def _wrap(text: str, font: pygame.font.Font, width: int) -> list[str]:
     return lines
 
 
+def _visible_top(surface: pygame.Surface) -> int:
+    """The y to blit `surface` at so its visible (non-transparent)
+    pixels are centered on the HUD strip's middle row."""
+    visible = surface.get_bounding_rect()
+    return HUD_ZONE.centery - visible.height // 2 - visible.top
+
+
 class Renderer:
     """Own the pygame window, assets, and grid<->pixel drawing."""
 
@@ -170,10 +179,12 @@ class Renderer:
         ]
 
         self.sprites = self._load_sprites()
-        # Scaled once here: smoothscale keeps the icons' shading crisp,
-        # but is too slow to redo every frame.
+        self.sprites.update(self._add_turned_pacman_frames())
+
+        # Scaled once here rather than every frame; nearest-neighbour
+        # (plain scale) keeps the pixel art crisp.
         self.hud_icons = {
-            name: pygame.transform.smoothscale(
+            name: pygame.transform.scale(
                 self.sprites[name], (HUD_ICON_SIZE, HUD_ICON_SIZE)
             )
             for name in HUD_ICONS
@@ -191,6 +202,28 @@ class Renderer:
             path.stem: pygame.image.load(str(path)).convert_alpha()
             for path in SPRITE_DIR.rglob("*.png")
         }
+
+    def _add_turned_pacman_frames(self) -> dict[str, pygame.Surface]:
+        """Turn each east-facing Pac-Man frame to face all 4 directions.
+
+        Returned under the names pacman_sprite_name() looks up
+        (pacman_north_2, ...), so drawing needs no special case.
+        90-degree rotations keep the pixel art crisp.
+        """
+        sprites: dict[str, pygame.Surface] = {}
+        for frame in range(PACMAN_FRAMES):
+            east = self.sprites.get(f"pacman_{frame}")
+            if east is None:
+                continue  # missing file: skip it rather than crash
+            turned = {
+                Direction.EAST: east,
+                Direction.NORTH: pygame.transform.rotate(east, 90),
+                Direction.WEST: pygame.transform.rotate(east, 180),
+                Direction.SOUTH: pygame.transform.rotate(east, -90),
+            }
+            for direction, sprite in turned.items():
+                sprites[pacman_sprite_name(direction, frame)] = sprite
+        return sprites
 
     def _load_sounds(self) -> dict[str, pygame.mixer.Sound]:
         # Some machines (headless VMs, CI, hardware without audio) have
@@ -297,10 +330,10 @@ class Renderer:
         self.screen.blit(scaled, self.cell_to_pixel(cell))
 
     def draw_player(
-        self, player: Player, direction: Direction, mouth_open: bool
+        self, player: Player, direction: Direction, frame: int
     ) -> None:
         """Draw Pac-Man at his current position, facing `direction`."""
-        name = pacman_sprite_name(direction, mouth_open)
+        name = pacman_sprite_name(direction, frame)
         self.draw_sprite(name, player.position)
 
     def draw_ghost(
@@ -373,7 +406,9 @@ class Renderer:
         """Draw level/lives/score/time in the background's top strip.
 
         Each item is an icon followed by its number, left-aligned in
-        its own quarter of the strip.
+        its own quarter of the strip. Icons and digits are centered on
+        the strip by their visible pixels, so they line up even though
+        the icons differ in height and the font box has extra space.
         """
         values = (level, lives, score, time_remaining)
         slot_width = HUD_ZONE.width // len(HUD_ICONS)
@@ -381,17 +416,19 @@ class Renderer:
             x = HUD_ZONE.x + index * slot_width + HUD_SLOT_PADDING
             icon = self.hud_icons.get(name)
             if icon is not None:
-                rect = icon.get_rect(midleft=(x, HUD_ZONE.centery))
-                self.screen.blit(icon, rect)
+                self.screen.blit(icon, (x, _visible_top(icon)))
             x += HUD_ICON_SIZE + HUD_ICON_GAP
-            self._draw_hud_number(str(value), (x, HUD_ZONE.centery))
+            self._draw_hud_number(str(value), x)
 
-    def _draw_hud_number(self, text: str, midleft: Cell) -> None:
+    def _draw_hud_number(self, text: str, left: int) -> None:
         shadow = self.hud_font.render(text, True, HUD_SHADOW_COLOR)
         surface = self.hud_font.render(text, True, TEXT_COLOR)
-        rect = surface.get_rect(midleft=midleft)
-        self.screen.blit(shadow, rect.move(HUD_SHADOW_OFFSET))
-        self.screen.blit(surface, rect)
+        position = (left, _visible_top(surface))
+        self.screen.blit(shadow, (
+            position[0] + HUD_SHADOW_OFFSET[0],
+            position[1] + HUD_SHADOW_OFFSET[1],
+        ))
+        self.screen.blit(surface, position)
 
     def draw_title(
         self, text: str, position: Cell, color: Color = TEXT_COLOR

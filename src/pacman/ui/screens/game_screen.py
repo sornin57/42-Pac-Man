@@ -31,6 +31,9 @@ KEY_DIRECTIONS: dict[int, Direction] = {
 }
 
 PLAYER_MOVE_INTERVAL = 0.15
+FRAME_TIME = 0.05  # seconds per frame of Pac-Man's mouth animation
+CHOMP = (0, 1, 2, 3, 4, 3, 2, 1)  # closed -> wide open -> closed
+IDLE_FRAME = 2  # standing still (wall, before first move): half open
 GHOST_MOVE_INTERVAL = 0.3
 EYES_STEPS_PER_MOVE = 2  # eaten ghosts' eyes rush home twice as fast
 GHOST_RELEASE_DELAY = 3.0  # how long a ghost waits at home after eaten
@@ -83,7 +86,8 @@ class GameScreen:
         self._message = ""
         self._message_until = 0.0
         self.facing = Direction.EAST
-        self.mouth_open = True
+        self.mouth_open = IDLE_FRAME  # Pac-Man's current animation frame
+        self._moving = False
         self.finished = False
         self.won = False
         self.waiting = True  # paused until the player's first move
@@ -222,8 +226,8 @@ class GameScreen:
             return
         self._last_player_move = now
         player = self.game.player
-        if player.update_movement(self.game.level.maze):
-            self.mouth_open = not self.mouth_open
+        self._moving = player.update_movement(self.game.level.maze)
+        if self._moving:
             self._handle_tile_effects()
             # Walking into a ghost counts too, not just being walked
             # into -- otherwise a ghost about to move away is missed.
@@ -350,6 +354,17 @@ class GameScreen:
         # Rounded up, so the HUD shows 0 only once time is really up.
         return max(0, math.ceil(remaining))
 
+    def _mouth_frame(self) -> int:
+        """Pac-Man's frame now: chomping while moving, else half open.
+
+        Picked by the clock at draw time (not once per cell step), so
+        the chomp stays smooth whatever the movement speed.
+        """
+        if self.waiting or not self._moving:
+            return IDLE_FRAME
+        index = int(time.monotonic() / FRAME_TIME) % len(CHOMP)
+        return CHOMP[index]
+
     def _flash_white(self) -> bool:
         """Whether frightened ghosts should show the white warning
         blink right now (the last FLASH_WARNING_DURATION seconds
@@ -368,6 +383,7 @@ class GameScreen:
         self.renderer.draw_dots(level.pacgums, level.superpacgums)
         for ghost in level.ghosts:
             self.renderer.draw_ghost(ghost, ghost.direction, flash_white)
+        self.mouth_open = self._mouth_frame()
         self.renderer.draw_player(
             self.game.player, self.facing, self.mouth_open
         )
