@@ -303,6 +303,23 @@ Modern pixel fonts recreate this appearance intentionally. By combining Press St
 
 **One direction, rotated.** Only the east-facing frames exist as image files. When the game starts, the renderer turns each one to face north, south and west with exact 90-degree rotations, which only move pixels around, so the pixel art stays sharp. The turned copies are stored under the same names the drawing code already used (`pacman_north_2`, …), so nothing else in the game had to change.
 
+### Smooth Movement
+
+**The problem.** Even with a smooth mouth, Pac-Man and the ghosts still looked jerky, because they did not really move: they jumped. The game logic moves a character one whole cell at a time (Pac-Man every 0.15 seconds, ghosts every 0.3 seconds), and each character was drawn exactly on its cell. So on screen they hopped from cell to cell, and the smoother the mouth, the more visible the hops became.
+
+**The solution.** The game logic still works cell by cell, but the drawing now shows each character *between* two cells, sliding from the previous one to the current one:
+
+- **Where it came from.** At every step, the game remembers the cells the character went through: two cells for Pac-Man and the ghosts (from and to), and up to three for eaten ghosts' eyes, which move two cells per step.
+- **How far along it is.** Every time the screen is redrawn, the game computes how much of the step's time has passed, from 0 (just left the previous cell) to 1 (arrived), and draws the character at that point of its path:
+
+  `drawn position = previous cell + (current cell − previous cell) × progress`
+
+  At 60 frames per second, this gives about 9 small moves per step for Pac-Man and about 18 for the ghosts, instead of one jump. Nothing extra is stored: each in-between position is calculated on the fly from the clock.
+- **Around corners, not through walls.** When the eyes turn a corner during their two-cell step, they slide along each cell of the path in turn instead of taking a diagonal shortcut through the wall.
+- **No slide when teleporting.** After losing a life, restarting a level or starting a new one, the remembered paths are cleared, so characters appear directly on their starting cell instead of gliding across the maze. Opening the pause menu keeps everyone exactly where they were.
+
+**What did not change.** Collisions, eating dots and the ghosts' decisions still use whole cells, exactly as before. Smooth movement is purely a drawing effect, so it cannot change how the game plays. The only visible side effect is that a character is drawn up to one step behind its real cell, so a collision can register a moment before the two sprites visibly touch. At these speeds it is barely noticeable.
+
 
 # TODO
 

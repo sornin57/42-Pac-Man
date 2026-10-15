@@ -14,6 +14,7 @@ from pacman.maze import Direction, Maze
 from pacman.player import Player
 
 Cell = tuple[int, int]
+Point = tuple[float, float]  # a cell position, possibly between cells
 Color = tuple[int, int, int]
 
 ASSET_DIR = Path(__file__).resolve().parent / "assets"
@@ -279,12 +280,16 @@ class Renderer:
             MAZE_ZONE.height - height * self.cell_size
         ) // 2
 
-    def cell_to_pixel(self, cell: Cell) -> Cell:
-        """Return the top-left pixel position of maze `cell`."""
+    def cell_to_pixel(self, cell: Point) -> Cell:
+        """Return the top-left pixel position of maze `cell`.
+
+        `cell` may be fractional (e.g. (3.5, 2.0), halfway between two
+        cells) for characters sliding from one cell to the next.
+        """
         x, y = cell
         return (
-            self.offset_x + x * self.cell_size,
-            self.offset_y + y * self.cell_size,
+            self.offset_x + round(x * self.cell_size),
+            self.offset_y + round(y * self.cell_size),
         )
 
     def _maze_rect(self) -> pygame.Rect:
@@ -321,7 +326,7 @@ class Renderer:
         """Release pygame's window, audio, and other resources."""
         pygame.quit()
 
-    def draw_sprite(self, name: str, cell: Cell) -> None:
+    def draw_sprite(self, name: str, cell: Point) -> None:
         """Blit the sprite `name` (no extension) at grid `cell`."""
         sprite = self.sprites[name]
         scaled = pygame.transform.scale(
@@ -330,18 +335,28 @@ class Renderer:
         self.screen.blit(scaled, self.cell_to_pixel(cell))
 
     def draw_player(
-        self, player: Player, direction: Direction, frame: int
+        self,
+        player: Player,
+        direction: Direction,
+        frame: int,
+        position: Point | None = None,
     ) -> None:
-        """Draw Pac-Man at his current position, facing `direction`."""
+        """Draw Pac-Man facing `direction`, at `position` if given
+        (e.g. between two cells), else at his current cell."""
         name = pacman_sprite_name(direction, frame)
-        self.draw_sprite(name, player.position)
+        self.draw_sprite(name, position or player.position)
 
     def draw_ghost(
-        self, ghost: Ghost, direction: Direction, flash_white: bool = False
+        self,
+        ghost: Ghost,
+        direction: Direction,
+        flash_white: bool = False,
+        position: Point | None = None,
     ) -> None:
-        """Draw `ghost` at its current position, facing `direction`."""
+        """Draw `ghost` facing `direction`, at `position` if given
+        (e.g. between two cells), else at its current cell."""
         name = ghost_sprite_name(ghost, direction, flash_white)
-        self.draw_sprite(name, ghost.position)
+        self.draw_sprite(name, position or ghost.position)
 
     def draw_maze(self, maze: Maze) -> None:
         """Draw every wall segment of `maze`, filling '42' cells."""

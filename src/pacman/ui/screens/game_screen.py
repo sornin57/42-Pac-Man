@@ -17,7 +17,7 @@ from pacman.config.models import GameConfig
 from pacman.game import Game
 from pacman.ghost import Ghost, GhostMode
 from pacman.maze import Direction
-from pacman.ui.renderer import Renderer
+from pacman.ui.renderer import Point, Renderer
 
 KEY_DIRECTIONS: dict[int, Direction] = {
     pygame.K_UP: Direction.NORTH,
@@ -59,6 +59,25 @@ MESSAGES: dict[str, tuple[str, ...]] = {
 PAUSE_KEYS = (pygame.K_ESCAPE, pygame.K_p)
 
 
+Cell = tuple[int, int]
+
+
+def _along(path: list[Cell], progress: float) -> Point:
+    """The point `progress` (0..1) of the way along `path`'s cells.
+
+    Moves through every cell in order, so a path that turns a corner
+    follows the corridor instead of cutting diagonally through a wall.
+    """
+    if len(path) < 2:
+        return path[-1]
+    segments = len(path) - 1
+    t = min(max(progress, 0.0), 1.0) * segments
+    index = min(int(t), segments - 1)
+    fraction = t - index
+    (x0, y0), (x1, y1) = path[index], path[index + 1]
+    return x0 + (x1 - x0) * fraction, y0 + (y1 - y0) * fraction
+
+
 class GameScreen:
     """Run one game's gameplay: input, ghost ticks, collisions, drawing."""
 
@@ -95,6 +114,10 @@ class GameScreen:
         self._ghost_release_at: dict[Ghost, float] = {}
         self._last_player_move = time.monotonic()
         self._last_ghost_move = time.monotonic()
+        # Cells each character went through in its latest step, so it
+        # can be drawn sliding along them instead of jumping (see draw).
+        self._player_path: list[Cell] = []
+        self._ghost_paths: dict[Ghost, list[Cell]] = {}
         # The level clock: time spent waiting is skipped by moving
         # _level_start forward when play resumes (see _start_level).
         self._level_start = time.monotonic()
@@ -146,8 +169,10 @@ class GameScreen:
         self._shift_clocks(suspended_for)
         self._paused_at += suspended_for
         self._message_until += suspended_for
-        self._last_ghost_move = now
-        self._last_player_move = now
+        # Shifted rather than reset, so characters mid-slide carry on
+        # from where they were instead of snapping back.
+        self._last_ghost_move += suspended_for
+        self._last_player_move += suspended_for
 
     def _shift_clocks(self, delta: float) -> None:
         """Push every running deadline `delta` seconds later."""
@@ -155,6 +180,11 @@ class GameScreen:
         self._frightened_until += delta
         for ghost in self._ghost_release_at:
             self._ghost_release_at[ghost] += delta
+
+    def _forget_paths(self) -> None:
+        """Stop the slide animations: everyone just teleported."""
+        self._player_path = []
+        self._ghost_paths.clear()
 
     def skip_level(self) -> None:
         """Cheat: win the current level right away."""
@@ -205,6 +235,7 @@ class GameScreen:
         self.game.next_level()
         self._clear_power_up()
         self._ghost_release_at.clear()
+        self._forget_paths()
         self._pause()
         self._reset_clock()
         self.renderer.set_level_size(
@@ -226,7 +257,9 @@ class GameScreen:
             return
         self._last_player_move = now
         player = self.game.player
+        start = player.position
         self._moving = player.update_movement(self.game.level.maze)
+        self._player_path = [start, player.position] if self._moving else []
         if self._moving:
             self._handle_tile_effects()
             # Walking into a ghost counts too, not just being walked
@@ -251,13 +284,18 @@ class GameScreen:
             return
         self._last_ghost_move = now
         if self.cheats.ghosts_frozen:
+            self._ghost_paths.clear()
             self._check_collisions()
             return
         maze = self.game.level.maze
         for ghost in self.game.level.ghosts:
             steps = EYES_STEPS_PER_MOVE if ghost.mode is GhostMode.EATEN else 1
+            path = [ghost.position]
             for _ in range(steps):
                 ghost.move(maze, self.game.player.position)
+                if ghost.position != path[-1]:
+                    path.append(ghost.position)
+            self._ghost_paths[ghost] = path
             if ghost.mode is GhostMode.WAITING:
                 self._release_when_ready(ghost, now)
         self._check_collisions()
@@ -321,6 +359,7 @@ class GameScreen:
         """
         self.renderer.play_sound("lose_life")
         game_over = self.game.player.lose_life()
+        self._forget_paths()
         if restart_level:
             self._restart_level()
         else:
@@ -335,6 +374,7 @@ class GameScreen:
         time, frozen until the first move."""
         self._clear_power_up()
         self._ghost_release_at.clear()
+        self._forget_paths()
         self.game.level.restart()
         self._pause()
         self._reset_clock()
@@ -365,6 +405,21 @@ class GameScreen:
         index = int(time.monotonic() / FRAME_TIME) % len(CHOMP)
         return CHOMP[index]
 
+    def _slide_position(
+        self, path: list[Cell], position: Cell, step_start: float,
+        interval: float,
+    ) -> Point:
+        """Where to draw a character that's at `position` and took
+        `path` in a step that began at `step_start`.
+
+        A path that doesn't end at `position` is stale (the character
+        was reset or teleported since), so it's drawn on its cell.
+        """
+        if not path or path[-1] != position:
+            return position
+        progress = (time.monotonic() - step_start) / interval
+        return _along(path, progress)
+
     def _flash_white(self) -> bool:
         """Whether frightened ghosts should show the white warning
         blink right now (the last FLASH_WARNING_DURATION seconds
@@ -382,10 +437,21 @@ class GameScreen:
         self.renderer.draw_maze(level.maze)
         self.renderer.draw_dots(level.pacgums, level.superpacgums)
         for ghost in level.ghosts:
-            self.renderer.draw_ghost(ghost, ghost.direction, flash_white)
+            position = self._slide_position(
+                self._ghost_paths.get(ghost, []), ghost.position,
+                self._last_ghost_move, GHOST_MOVE_INTERVAL,
+            )
+            self.renderer.draw_ghost(
+                ghost, ghost.direction, flash_white, position
+            )
         self.mouth_open = self._mouth_frame()
+        player = self.game.player
+        position = self._slide_position(
+            self._player_path, player.position,
+            self._last_player_move, PLAYER_MOVE_INTERVAL,
+        )
         self.renderer.draw_player(
-            self.game.player, self.facing, self.mouth_open
+            player, self.facing, self.mouth_open, position
         )
         self.renderer.draw_hud(
             self.game.player.score,
