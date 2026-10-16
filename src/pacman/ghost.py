@@ -22,7 +22,12 @@ class Ghost:
         self.home = position
         self.direction = Direction.SOUTH
 
-    def get_target(self, player_position: Position) -> Position:
+    def get_target(
+        self,
+        maze: Maze,
+        player_position: Position,
+        player_direction: Direction | None,
+    ) -> Position:
         return player_position
 
     def flee(self, maze: Maze, player_position: Position) -> Position:
@@ -44,14 +49,21 @@ class Ghost:
         self._step_to(best_position)
         return self.position
 
-    def move(self, maze: Maze, player_position: Position) -> Position:
+    def move(
+        self,
+        maze: Maze,
+        player_position: Position,
+        player_direction: Direction | None = None,
+    ) -> Position:
         """Take one step: eyes head home, waiting ghosts stay put."""
         if self.mode is GhostMode.WAITING:
             return self.position
+        if self.mode is GhostMode.FRIGHTENED:
+            return self.flee(maze, player_position)
         if self.mode is GhostMode.EATEN:
             target = self.home
         else:
-            target = self.get_target(player_position)
+            target = self.get_target(maze, player_position, player_direction)
         path = maze.shortest_path(self.position, target)
 
         if len(path) > 1:
@@ -96,6 +108,23 @@ class Pinky(Ghost):
     def __init__(self, position: Position) -> None:
         super().__init__("Pinky", "Pink", position)
 
+    def get_target(
+        self,
+        maze: Maze,
+        player_position: Position,
+        player_direction: Direction | None,
+    ) -> Position:
+        if player_direction is None:
+            return player_position
+
+        x, y = player_position
+        for _ in range(4):
+            if maze.has_wall(x, y, player_direction):
+                break
+            x += player_direction.dx
+            y += player_direction.dy
+        return x, y
+
 
 class Inky(Ghost):
     def __init__(self, position: Position) -> None:
@@ -103,5 +132,18 @@ class Inky(Ghost):
 
 
 class Clyde(Ghost):
+    RETREAT_DISTANCE = 4
+
     def __init__(self, position: Position) -> None:
         super().__init__("Clyde", "Orange", position)
+
+    def get_target(
+        self,
+        maze: Maze,
+        player_position: Position,
+        player_direction: Direction | None,
+    ) -> Position:
+        distance = len(maze.shortest_path(self.position, player_position)) - 1
+        if distance <= self.RETREAT_DISTANCE:
+            return self.home
+        return player_position

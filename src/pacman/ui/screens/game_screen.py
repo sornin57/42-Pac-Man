@@ -292,7 +292,11 @@ class GameScreen:
             steps = EYES_STEPS_PER_MOVE if ghost.mode is GhostMode.EATEN else 1
             path = [ghost.position]
             for _ in range(steps):
-                ghost.move(maze, self.game.player.position)
+                ghost.move(
+                    maze,
+                    self.game.player.position,
+                    self.game.player.direction,
+                )
                 if ghost.position != path[-1]:
                     path.append(ghost.position)
             self._ghost_paths[ghost] = path
