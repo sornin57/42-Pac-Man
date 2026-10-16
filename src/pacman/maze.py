@@ -146,16 +146,38 @@ class Maze:
             )
 
     def get_center(self) -> tuple[int, int]:
-        """Return the coordinates of the maze's center cell.
+        """Return the coordinates of a walkable cell near the center.
+
+        The exact center can fall inside the isolated '42' pattern
+        (fully walled, no valid moves), in which case the nearest
+        non-isolated cell is returned instead.
 
         Returns:
-            (x, y) coordinates of the center cell.
+            (x, y) coordinates of a walkable cell near the maze's
+            center.
+
+        Raises:
+            ValueError: If no non-isolated cell exists in the maze.
         """
-        x = self.width // 2
-        y = self.height // 2
-        # TODO: check the coords are valid and not part of blocked cells,
-        # if so, find the nearest valid cell
-        return x, y
+        x, y = self.width // 2, self.height // 2
+        if not self.is_isolated_cell(x, y):
+            return x, y
+        return self._nearest_open_cell(x, y)
+
+    def _nearest_open_cell(self, x: int, y: int) -> tuple[int, int]:
+        """Return the closest in-bounds, non-isolated cell to (x, y)."""
+        max_radius = max(self.width, self.height)
+        for radius in range(1, max_radius + 1):
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    if max(abs(dx), abs(dy)) != radius:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < self.width and 0 <= ny < self.height):
+                        continue
+                    if not self.is_isolated_cell(nx, ny):
+                        return nx, ny
+        raise ValueError("No open cell found near the maze center")
 
     def is_isolated_cell(self, x: int, y: int) -> bool:
         """Return True if the cell at (x, y) is a fully-walled '42' cell.

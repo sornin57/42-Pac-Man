@@ -16,12 +16,46 @@ class Player:
         self.lives: int = config.lives
         self.powered_up: bool = False  # TODO: maybe should be a timer
         self.config: GameConfig = config
+        self.direction: Direction | None = None
+        self.next_direction: Direction | None = None
 
     def move(self, direction: Direction, maze: Maze) -> None:
         if maze.has_wall(*self.position, direction):
             return
         x, y = self.position
         self.position = (x + direction.dx, y + direction.dy)
+
+    def set_direction(self, direction: Direction) -> None:
+        """Record the direction the player wants to move next.
+
+        Doesn't move immediately -- taken into account on the next
+        `update_movement` tick, so a turn requested early (before an
+        intersection is reachable) still happens as soon as it can.
+        """
+        self.next_direction = direction
+
+    def update_movement(self, maze: Maze) -> bool:
+        """Advance one cell toward the buffered or current direction.
+
+        Tries `next_direction` first (consuming it if it's legal),
+        then continues in `direction`. Does nothing if neither is
+        currently legal -- Pac-Man just waits at the wall.
+
+        Returns:
+            True if the player actually moved this call.
+        """
+        if self.next_direction is not None and not maze.has_wall(
+            *self.position, self.next_direction
+        ):
+            self.direction = self.next_direction
+            self.next_direction = None
+
+        if self.direction is None:
+            return False
+
+        before = self.position
+        self.move(self.direction, maze)
+        return self.position != before
 
     def eat_pacgum(self) -> None:
         self.score += self.config.points_per_pacgum
@@ -43,8 +77,14 @@ class Player:
         self.powered_up = False
         if self.lives <= 0:
             return True
-        self.position = self.spawn_position
+        self.respawn()
         return False
+
+    def respawn(self) -> None:
+        """Go back to the spawn point, standing still."""
+        self.position = self.spawn_position
+        self.direction = None
+        self.next_direction = None
 
     def gain_life(self) -> None:
         self.lives += 1
