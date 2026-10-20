@@ -16,6 +16,7 @@ they lead to.
       \\--Instructions --Esc--> main menu
 """
 
+import logging
 import sys
 from pathlib import Path
 from typing import Protocol
@@ -27,6 +28,7 @@ from pacman.config.models import GameConfig
 from pacman.config.parser import load_config
 from pacman.game import Game
 from pacman.highscore import Highscore, load_scores, save_scores
+from pacman.log_setup import setup_logging
 from pacman.ui.fireworks import Fireworks
 from pacman.ui.menu import MenuAction
 from pacman.ui.renderer import Renderer
@@ -38,6 +40,8 @@ from pacman.ui.screens.highscores_screen import HighscoresScreen
 from pacman.ui.screens.instructions_screen import InstructionsScreen
 from pacman.ui.screens.main_menu_screen import MainMenuScreen
 from pacman.ui.screens.pause_menu import PauseAction, PauseMenu
+
+logger = logging.getLogger(__name__)
 
 FPS = 60
 MAX_HIGHSCORES = 10
@@ -124,6 +128,7 @@ class App:
             self._open_cheats(in_game=False)
         action, menu.chosen = menu.chosen, None
         if action is MenuAction.PLAY:
+            logger.info("New game started")
             self.game = Game(self.config)
             self.screens = [
                 GameScreen(self.game, self.renderer, self.config, self.cheats)
@@ -144,6 +149,12 @@ class App:
         if game_screen.finished:
             # The victory jingle, if earned, already played when the
             # win milestone was hit; running out of lives ends it all.
+            logger.info(
+                "Game over: score %d, level %d%s",
+                self.game.player.score,
+                self.game.current_level + 1,
+                ", winner" if game_screen.won else "",
+            )
             self.renderer.play_sound("game_over")
             self.screens = [EndScreen(
                 self.game.player.score,
@@ -224,7 +235,11 @@ class App:
         """
         try:
             scores = load_scores(self.config.highscore_filename)
-        except (ValueError, OSError):  # incl. bad JSON / bad encoding
+        except (ValueError, OSError) as error:  # incl. bad JSON/encoding
+            logger.error(
+                "Highscores not loaded from %s, starting with none: %s",
+                self.config.highscore_filename, error,
+            )
             return []
         scores.sort(key=lambda entry: entry.score, reverse=True)
         return scores[:MAX_HIGHSCORES]
@@ -235,8 +250,8 @@ class App:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             save_scores(str(path), self.highscores)
-        except OSError:
-            pass
+        except OSError as error:
+            logger.error("Highscores not saved to %s: %s", path, error)
 
     def _to_main_menu(self) -> None:
         self.screens = [MainMenuScreen(self.renderer)]
@@ -247,12 +262,26 @@ class App:
 
 
 def main() -> None:
-    """Load the config named on the command line and run the app."""
+    """Load the config named on the command line and run the app.
+
+    Anything unexpected ends up here instead of as a traceback: the
+    full details go to the log, the player gets one short line.
+    """
     if len(sys.argv) != 2:
         print("Usage: python3 pac-man.py <config.json>")
         return
-    config = load_config(sys.argv[1])
-    App(config).run()
+    log_path = setup_logging()
+    logger.info("Starting with config %s", sys.argv[1])
+    try:
+        config = load_config(sys.argv[1])
+        App(config).run()
+    except Exception:
+        logger.exception("Unexpected error, the game stopped")
+        pygame.quit()
+        details = f" Details: {log_path}" if log_path else ""
+        print(f"Pac-Man hit an unexpected error.{details}", file=sys.stderr)
+        sys.exit(1)
+    logger.info("Game closed")
 
 
 if __name__ == "__main__":

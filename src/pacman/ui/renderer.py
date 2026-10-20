@@ -5,6 +5,7 @@ sprites/sounds, and knows how to turn grid coordinates into pixels --
 it has no opinion about game state or which screen is active.
 """
 
+import logging
 from pathlib import Path
 
 import pygame
@@ -16,6 +17,8 @@ from pacman.player import Player
 Cell = tuple[int, int]
 Point = tuple[float, float]  # a cell position, possibly between cells
 Color = tuple[int, int, int]
+
+logger = logging.getLogger(__name__)
 
 ASSET_DIR = Path(__file__).resolve().parent / "assets"
 SPRITE_DIR = ASSET_DIR / "sprites"
@@ -128,6 +131,7 @@ def _load_font(path: Path, size: int) -> pygame.font.Font:
     """Load the font at `path`, or pygame's bundled one if missing."""
     if path.exists():
         return pygame.font.Font(str(path), size)
+    logger.error("Font not found: %s, using pygame's default", path)
     return pygame.font.Font(None, size)
 
 
@@ -203,10 +207,15 @@ class Renderer:
         # (sprites/pacman/, sprites/blinky/, ...), keyed by filename
         # alone so lookups (pacman_sprite_name, ghost_sprite_name)
         # don't need to know which folder a sprite lives in.
-        return {
-            path.stem: pygame.image.load(str(path)).convert_alpha()
-            for path in SPRITE_DIR.rglob("*.png")
-        }
+        sprites: dict[str, pygame.Surface] = {}
+        for path in SPRITE_DIR.rglob("*.png"):
+            try:
+                sprite = pygame.image.load(str(path)).convert_alpha()
+            except pygame.error as error:
+                logger.error("Sprite not loaded: %s: %s", path, error)
+                continue
+            sprites[path.stem] = sprite
+        return sprites
 
     def _add_turned_pacman_frames(self) -> dict[str, pygame.Surface]:
         """Turn each east-facing Pac-Man frame to face all 4 directions.
@@ -237,12 +246,17 @@ class Renderer:
         if pygame.mixer.get_init() is None:
             try:
                 pygame.mixer.init()
-            except pygame.error:
+            except pygame.error as error:
+                logger.error("No audio, playing without sound: %s", error)
                 return {}
-        return {
-            path.stem: pygame.mixer.Sound(str(path))
-            for path in SOUND_DIR.glob("*.wav")
-        }
+        # A broken file only loses its own sound (play_sound skips it).
+        sounds: dict[str, pygame.mixer.Sound] = {}
+        for path in SOUND_DIR.glob("*.wav"):
+            try:
+                sounds[path.stem] = pygame.mixer.Sound(str(path))
+            except pygame.error as error:
+                logger.error("Sound not loaded: %s: %s", path, error)
+        return sounds
 
     def _load_music(self) -> bool:
         """Load the background music track, if audio is available.
@@ -250,12 +264,16 @@ class Renderer:
         Returns:
             True if `pygame.mixer.music` is ready to play it.
         """
-        if pygame.mixer.get_init() is None or not MUSIC_PATH.exists():
+        if pygame.mixer.get_init() is None:
+            return False  # no audio: already logged by _load_sounds
+        if not MUSIC_PATH.exists():
+            logger.error("Music not found: %s", MUSIC_PATH)
             return False
         try:
             pygame.mixer.music.load(str(MUSIC_PATH))
             return True
-        except pygame.error:
+        except pygame.error as error:
+            logger.error("Music not loaded: %s: %s", MUSIC_PATH, error)
             return False
 
     def set_level_size(self, width: int, height: int) -> None:
