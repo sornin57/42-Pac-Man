@@ -83,6 +83,7 @@ class HighscoresScreen:
         self.renderer.present()
 
     def _rows(self) -> list[tuple[str, tuple[int, int, int]]]:
+        """The table rows (text, color): the score, then the top 10."""
         rows: list[tuple[str, tuple[int, int, int]]] = []
         if self.score is not None:
             rows.append((f"YOUR SCORE {self.score}", TEXT_COLOR))

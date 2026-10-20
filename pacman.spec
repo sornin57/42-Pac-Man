@@ -13,7 +13,7 @@ build goes through four steps, one object each:
    list what the program needs: Python modules, binary libraries
    (pygame's SDL), and data files we name ourselves (`datas`).
    Imports are found by reading the code, so files opened by path
-   (sounds, fonts, sprites, config) are invisible to it: they must be
+   (sounds, fonts, sprites) are invisible to it: they must be
    listed in `datas`.
 2. PYZ -- pack the pure-Python modules into one compressed archive.
 3. EXE -- the launcher: a small native program holding a Python
@@ -40,10 +40,9 @@ a = Analysis(
     # (source on disk, folder inside the package). The renderer finds
     # its assets next to its own module (Path(__file__).parent /
     # "assets"), so they keep the same relative place: pacman/ui/.
-    datas=[
-        (str(ASSETS), "pacman/ui/assets"),
-        (str(ROOT / "config" / "default.json"), "config"),
-    ],
+    # The config isn't bundled: it ships next to the game instead
+    # (see the Makefile), where players can read and edit it.
+    datas=[(str(ASSETS), "pacman/ui/assets")],
     # Dev-only tools that would otherwise be dragged in and bloat it.
     excludes=["tkinter", "pytest", "mypy", "flake8"],
 )

@@ -338,7 +338,7 @@ https://pixabay.com/sound-effects/musical-8bit-music-for-game-68698/
 Licensed under the Pixabay Content License (attribution not required, credited here anyway)
 
 Using Spec Files https://pyinstaller.org/en/stable/spec-files.html
-
+logging — Logging facility for Python https://docs.python.org/3/library/logging.html
 
 
 ### Third-Party Assets and Licenses
@@ -346,8 +346,7 @@ Using Spec Files https://pyinstaller.org/en/stable/spec-files.html
 This project uses the following open-source fonts:
 
 - **Press Start 2P** — available from [Google Fonts](https://fonts.google.com/specimen/Press+Start+2P).
-- **Silkscreen** — available from [Google Fonts](https://fonts.google.com/specimen/Silkscreen).
 
-Both fonts are distributed under the **SIL Open Font License 1.1 (OFL)**. Their original copyright notices and license texts are preserved in `src/pacman/assets/fonts/`.
+It's distributed under the **SIL Open Font License 1.1 (OFL)**. Its original copyright notice and license text are preserved in `src/pacman/assets/fonts/`.
 
 All third-party assets are used in accordance with their respective licenses.

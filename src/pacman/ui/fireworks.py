@@ -46,6 +46,7 @@ MAX_STEP = 0.1  # longest time step simulated at once (after a hiccup)
 
 @dataclass
 class _Particle:
+    """One rocket or spark: position, speed, color and age."""
     x: float
     y: float
     vx: float

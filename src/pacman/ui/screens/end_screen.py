@@ -92,6 +92,10 @@ class EndScreen:
             self.name += event.unicode
 
     def _submit(self) -> None:
+        """Finish name entry, saving the name if the score qualifies.
+
+        An empty name is ignored: the player keeps typing.
+        """
         name = self.name.strip()
         if not name:
             return

@@ -115,6 +115,7 @@ class InstructionsScreen:
             self.done = True
 
     def _flip(self, step: int) -> None:
+        """Turn `step` pages, wrapping around."""
         self.page_index = wrap(self.page_index, step, len(self.pages))
 
     def update(self) -> None:

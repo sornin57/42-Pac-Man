@@ -88,11 +88,13 @@ class CheatScreen:
             self.done = True
 
     def _move(self, step: int) -> None:
+        """Move the selection by `step`, wrapping around."""
         self.selected_index = wrap(
             self.selected_index, step, len(self.items)
         )
 
     def _apply(self, item: CheatItem) -> None:
+        """Carry out `item`: flip a toggle, record a request, or close."""
         if item is CheatItem.INVINCIBLE:
             self.cheats.invincible = not self.cheats.invincible
         elif item is CheatItem.FREEZE_GHOSTS:
@@ -113,6 +115,7 @@ class CheatScreen:
         return f"{name}: {state}" if state else name
 
     def _state(self, item: CheatItem) -> str:
+        """The state shown after `item`'s name, or "" for none."""
         if item is CheatItem.INVINCIBLE:
             return _on_off(self.cheats.invincible)
         if item is CheatItem.FREEZE_GHOSTS:
@@ -137,4 +140,5 @@ class CheatScreen:
 
 
 def _on_off(on: bool) -> str:
+    """"ON" or "OFF" for a toggle's state."""
     return "ON" if on else "OFF"

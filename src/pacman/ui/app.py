@@ -51,11 +51,14 @@ MENU_HIGHSCORES_MESSAGE = "BEAT THEM ALL!"
 class Screen(Protocol):
     """What every screen provides to the main loop."""
 
-    def handle_event(self, event: pygame.event.Event) -> None: ...
+    def handle_event(self, event: pygame.event.Event) -> None:
+        """React to one pygame event."""
 
-    def update(self) -> None: ...
+    def update(self) -> None:
+        """Advance this screen by one frame."""
 
-    def draw(self) -> None: ...
+    def draw(self) -> None:
+        """Draw this screen's frame."""
 
 
 class App:
@@ -93,6 +96,7 @@ class App:
         self.renderer.close()
 
     def _handle_events(self) -> None:
+        """Pass pending events to the top screen; closing the window quits."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -100,6 +104,7 @@ class App:
                 self.screen.handle_event(event)
 
     def _check_transition(self) -> None:
+        """Act on the flags the top screen raised this frame."""
         screen = self.screen
         if isinstance(screen, MainMenuScreen):
             self._from_main_menu(screen)
@@ -112,7 +117,7 @@ class App:
         elif isinstance(screen, EndScreen) and screen.done:
             if screen.saved_entry is not None:
                 self.highscores = screen.scores
-                self._save_highscores()
+                self._save_highscores(screen.saved_entry)
             self._show_final_highscores(
                 screen.score, screen.won, screen.saved_entry,
                 screen.fireworks,
@@ -123,6 +128,7 @@ class App:
             self._to_main_menu()
 
     def _from_main_menu(self, menu: MainMenuScreen) -> None:
+        """Open the cheat menu or the chosen screen, or quit."""
         if menu.open_cheats:
             menu.open_cheats = False
             self._open_cheats(in_game=False)
@@ -146,6 +152,7 @@ class App:
             self.running = False
 
     def _from_game(self, game_screen: GameScreen) -> None:
+        """Show the end screen after the game, the pause menu if asked."""
         if game_screen.finished:
             # The victory jingle, if earned, already played when the
             # win milestone was hit; running out of lives ends it all.
@@ -169,6 +176,7 @@ class App:
             self.screens.append(PauseMenu(self.renderer, self._snapshot()))
 
     def _from_pause_menu(self, pause: PauseMenu) -> None:
+        """Open the cheat menu, resume, go to the main menu, or quit."""
         if pause.open_cheats:
             pause.open_cheats = False
             self._open_cheats(in_game=True)
@@ -181,6 +189,10 @@ class App:
             self.running = False
 
     def _from_cheats(self, cheats: CheatScreen) -> None:
+        """Close the cheat menu and apply its one-off requests.
+
+        Extra lives and skip level go to the game under the pause menu.
+        """
         if not cheats.done:
             return
         self.screens.pop()
@@ -198,6 +210,12 @@ class App:
             game_screen.skip_level()
 
     def _open_cheats(self, in_game: bool) -> None:
+        """Push the cheat menu over the current screen.
+
+        Args:
+            in_game: Opened from the pause menu, so one-off cheats are
+                offered.
+        """
         self.screens.append(CheatScreen(
             self.cheats, self.renderer, self._snapshot(), in_game
         ))
@@ -217,6 +235,14 @@ class App:
         new_entry: Highscore | None,
         fireworks: Fireworks | None = None,
     ) -> None:
+        """Replace every screen with the highscore table after a game.
+
+        Args:
+            score: The finished game's score.
+            won: Whether the win milestone was reached.
+            new_entry: The just-saved entry, highlighted (None if none).
+            fireworks: The victory show to carry on, if any.
+        """
         if won:
             title, message = end_screen.WIN_TITLE, end_screen.WIN_MESSAGE
         else:
@@ -244,16 +270,26 @@ class App:
         scores.sort(key=lambda entry: entry.score, reverse=True)
         return scores[:MAX_HIGHSCORES]
 
-    def _save_highscores(self) -> None:
-        """Write the highscore file; failing to save mustn't crash."""
+    def _save_highscores(self, new_entry: Highscore) -> None:
+        """Write the highscore file; failing to save mustn't crash.
+
+        Args:
+            new_entry: The entry just added, named in the log.
+        """
         path = Path(self.config.highscore_filename)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             save_scores(str(path), self.highscores)
         except OSError as error:
             logger.error("Highscores not saved to %s: %s", path, error)
+        else:
+            logger.info(
+                "Highscore saved: %s, %d points, to %s",
+                new_entry.name, new_entry.score, path,
+            )
 
     def _to_main_menu(self) -> None:
+        """Replace every screen with a fresh main menu."""
         self.screens = [MainMenuScreen(self.renderer)]
 
     def _snapshot(self) -> pygame.Surface:
@@ -264,16 +300,24 @@ class App:
 def main() -> None:
     """Load the config named on the command line and run the app.
 
+    Without an argument, the defaults from models.py are used.
+
     Anything unexpected ends up here instead of as a traceback: the
     full details go to the log, the player gets one short line.
     """
-    if len(sys.argv) != 2:
-        print("Usage: python3 pac-man.py <config.json>")
-        return
     log_path = setup_logging()
-    logger.info("Starting with config %s", sys.argv[1])
+    if len(sys.argv) > 2:
+        logger.error(
+            "Only one argument expected, ignored: %s", " ".join(sys.argv[2:])
+        )
     try:
-        config = load_config(sys.argv[1])
+        if len(sys.argv) < 2:
+            # E.g. the packaged game opened with a double-click.
+            logger.info("No config given, using the defaults")
+            config = GameConfig()
+        else:
+            logger.info("Starting with config %s", sys.argv[1])
+            config = load_config(sys.argv[1])
         App(config).run()
     except Exception:
         logger.exception("Unexpected error, the game stopped")
