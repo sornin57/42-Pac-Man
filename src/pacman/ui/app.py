@@ -12,7 +12,8 @@ they lead to.
       | |                                 \\--Main menu--> main menu
       | \\--- highscores <-- name entry <--out of lives-- game
       |          ^          (saved only if it makes the top 10)
-      \\--Highscores
+      |\\--Highscores
+      \\--Instructions --Esc--> main menu
 """
 
 import sys
@@ -26,6 +27,7 @@ from pacman.config.models import GameConfig
 from pacman.config.parser import load_config
 from pacman.game import Game
 from pacman.highscore import Highscore, load_scores, save_scores
+from pacman.ui.fireworks import Fireworks
 from pacman.ui.menu import MenuAction
 from pacman.ui.renderer import Renderer
 from pacman.ui.screens.cheat_screen import CheatScreen
@@ -33,6 +35,7 @@ from pacman.ui.screens import end_screen, main_menu_screen
 from pacman.ui.screens.end_screen import EndScreen
 from pacman.ui.screens.game_screen import GameScreen
 from pacman.ui.screens.highscores_screen import HighscoresScreen
+from pacman.ui.screens.instructions_screen import InstructionsScreen
 from pacman.ui.screens.main_menu_screen import MainMenuScreen
 from pacman.ui.screens.pause_menu import PauseAction, PauseMenu
 
@@ -107,9 +110,12 @@ class App:
                 self.highscores = screen.scores
                 self._save_highscores()
             self._show_final_highscores(
-                screen.score, screen.won, screen.saved_entry
+                screen.score, screen.won, screen.saved_entry,
+                screen.fireworks,
             )
         elif isinstance(screen, HighscoresScreen) and screen.done:
+            self._to_main_menu()
+        elif isinstance(screen, InstructionsScreen) and screen.done:
             self._to_main_menu()
 
     def _from_main_menu(self, menu: MainMenuScreen) -> None:
@@ -129,9 +135,10 @@ class App:
                 main_menu_screen.TITLE,
                 MENU_HIGHSCORES_MESSAGE,
             )]
+        elif action is MenuAction.INSTRUCTIONS:
+            self.screens = [InstructionsScreen(self.renderer, self.config)]
         elif action is MenuAction.QUIT:
             self.running = False
-        # INSTRUCTIONS: its screen doesn't exist yet.
 
     def _from_game(self, game_screen: GameScreen) -> None:
         if game_screen.finished:
@@ -166,9 +173,17 @@ class App:
         if not cheats.done:
             return
         self.screens.pop()
+        if not cheats.extra_lives and not cheats.skip_level:
+            return
+        # One-off cheats only exist in game, so the stack is now
+        # [..., game, pause menu].
+        game_screen = self.screens[-2]
+        assert isinstance(game_screen, GameScreen)
+        for _ in range(cheats.extra_lives):
+            game_screen.add_life()
         if cheats.skip_level:
             # Straight back into the game, which starts the next level.
-            game_screen = self._close_pause_menu()
+            self._close_pause_menu()
             game_screen.skip_level()
 
     def _open_cheats(self, in_game: bool) -> None:
@@ -185,14 +200,19 @@ class App:
         return game_screen
 
     def _show_final_highscores(
-        self, score: int, won: bool, new_entry: Highscore | None
+        self,
+        score: int,
+        won: bool,
+        new_entry: Highscore | None,
+        fireworks: Fireworks | None = None,
     ) -> None:
         if won:
             title, message = end_screen.WIN_TITLE, end_screen.WIN_MESSAGE
         else:
             title, message = end_screen.LOSE_TITLE, end_screen.LOSE_MESSAGE
         self.screens = [HighscoresScreen(
-            self.highscores, self.renderer, title, message, score, new_entry
+            self.highscores, self.renderer, title, message, score,
+            new_entry, fireworks,
         )]
 
     def _load_highscores(self) -> list[Highscore]:

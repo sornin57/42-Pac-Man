@@ -18,6 +18,7 @@ from pacman.game import Game
 from pacman.ghost import Ghost, GhostMode
 from pacman.maze import Direction
 from pacman.ui.renderer import Point, Renderer
+from pacman.ui.screens.menu_keys import is_cheat_next_level
 
 KEY_DIRECTIONS: dict[int, Direction] = {
     pygame.K_UP: Direction.NORTH,
@@ -134,6 +135,9 @@ class GameScreen:
     def _handle_keydown(self, key: int) -> None:
         if key in PAUSE_KEYS:
             self.pause_requested = True
+            return
+        if is_cheat_next_level(pygame.event.Event(pygame.KEYDOWN, key=key)):
+            self.skip_level()
             return
         # Only buffers the requested direction -- actual movement is
         # timer-driven (see _update_player), independent of key timing
@@ -337,7 +341,7 @@ class GameScreen:
         return True
 
     def _update_timer(self) -> None:
-        if self.time_remaining() > 0:
+        if self.cheats.timer_off or self.time_remaining() > 0:
             return
         self._say("time_up")
         if self.cheats.invincible:
@@ -368,6 +372,10 @@ class GameScreen:
             self.game.level.reset_ghosts()
         if game_over:
             self.finished = True
+
+    def add_life(self) -> None:
+        """Cheat: give the player an extra life."""
+        self.game.player.lives += 1
 
     def _restart_level(self) -> None:
         """Start the level over: every dot back, ghosts home, full
@@ -457,7 +465,7 @@ class GameScreen:
             self.game.player.score,
             self.game.player.lives,
             self.game.current_level + 1,  # current_level is 0-indexed
-            self.time_remaining(),
+            None if self.cheats.timer_off else self.time_remaining(),
         )
         if time.monotonic() < self._message_until:
             self.renderer.draw_message(self._message)

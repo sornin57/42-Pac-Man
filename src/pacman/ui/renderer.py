@@ -74,6 +74,10 @@ MESSAGE_PADDING_Y = 14
 MESSAGE_LINE_GAP = 4
 # Inside the top strip's inner frame line.
 HUD_ZONE = _bg_zone(6, 6, 393, 38)
+# Where victory fireworks fly: between the HUD strip and the plate.
+FIREWORKS_ZONE = pygame.Rect(
+    0, HUD_ZONE.bottom, WINDOW_SIZE[0], MESSAGE_ZONE.top - HUD_ZONE.bottom
+)
 
 # HUD items, left to right; icons made by tools/make_hud_icons.py.
 HUD_ICONS = ("hud_level", "hud_lives", "hud_score", "hud_time")
@@ -416,9 +420,12 @@ class Renderer:
         self.screen.blit(surface, position)
 
     def draw_hud(
-        self, score: int, lives: int, level: int, time_remaining: int
+        self, score: int, lives: int, level: int, time_remaining: int | None
     ) -> None:
         """Draw level/lives/score/time in the background's top strip.
+
+        `time_remaining` is None when the timer is off (cheat): the time
+        slot then shows "--".
 
         Each item is an icon followed by its number, left-aligned in
         its own quarter of the strip. Icons and digits are centered on
@@ -433,7 +440,7 @@ class Renderer:
             if icon is not None:
                 self.screen.blit(icon, (x, _visible_top(icon)))
             x += HUD_ICON_SIZE + HUD_ICON_GAP
-            self._draw_hud_number(str(value), x)
+            self._draw_hud_number("--" if value is None else str(value), x)
 
     def _draw_hud_number(self, text: str, left: int) -> None:
         shadow = self.hud_font.render(text, True, HUD_SHADOW_COLOR)
@@ -452,6 +459,13 @@ class Renderer:
         with its top-left corner at `position`."""
         surface = self.title_font.render(text, True, color)
         self.screen.blit(surface, position)
+
+    def draw_pixels(
+        self, pixels: list[tuple[int, int, Color]], size: int
+    ) -> None:
+        """Draw square `size`-pixel dots (e.g. firework sparks)."""
+        for x, y, color in pixels:
+            pygame.draw.rect(self.screen, color, (x, y, size, size))
 
     def draw_hud_title(self, text: str) -> None:
         """Draw a big title ("PAC-MAN") centered in the HUD strip."""

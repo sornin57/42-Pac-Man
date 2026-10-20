@@ -337,6 +337,9 @@ Background music "8bit Music for Game" by freesound_community (Freesound user an
 https://pixabay.com/sound-effects/musical-8bit-music-for-game-68698/
 Licensed under the Pixabay Content License (attribution not required, credited here anyway)
 
+Using Spec Files https://pyinstaller.org/en/stable/spec-files.html
+
+
 
 ### Third-Party Assets and Licenses
 

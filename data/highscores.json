@@ -1,11 +1,31 @@
 [
   {
+    "name": "l",
+    "score": 4830
+  },
+  {
     "name": "k",
     "score": 4050
   },
   {
     "name": "k",
+    "score": 2740
+  },
+  {
+    "name": "k",
     "score": 2460
+  },
+  {
+    "name": "g",
+    "score": 2100
+  },
+  {
+    "name": "chr",
+    "score": 1660
+  },
+  {
+    "name": "j",
+    "score": 1650
   },
   {
     "name": "h",
@@ -18,25 +38,5 @@
   {
     "name": "w",
     "score": 1250
-  },
-  {
-    "name": "j",
-    "score": 910
-  },
-  {
-    "name": "k",
-    "score": 880
-  },
-  {
-    "name": "j",
-    "score": 170
-  },
-  {
-    "name": "l",
-    "score": 120
-  },
-  {
-    "name": "l",
-    "score": 90
   }
 ]

@@ -11,7 +11,13 @@ import time
 import pygame
 
 from pacman.highscore import Highscore, add_score
-from pacman.ui.renderer import MENU_SELECTED_COLOR, TEXT_COLOR, Renderer
+from pacman.ui.fireworks import PIXEL_SIZE, Fireworks
+from pacman.ui.renderer import (
+    FIREWORKS_ZONE,
+    MENU_SELECTED_COLOR,
+    TEXT_COLOR,
+    Renderer,
+)
 from pacman.ui.screens.game_screen import WIN_AFTER_LEVELS
 from pacman.ui.screens.menu_keys import BACK_KEYS
 
@@ -65,6 +71,9 @@ class EndScreen:
         # holds the new list, for `App` to save.
         self.saved_entry: Highscore | None = None
         self.done = False
+        # A win is celebrated; `App` hands the same show on to the
+        # highscore table, so the bursts carry on without a restart.
+        self.fireworks = Fireworks(FIREWORKS_ZONE) if won else None
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """Type a name; Enter saves it, Esc skips saving."""
@@ -93,11 +102,15 @@ class EndScreen:
         self.done = True
 
     def update(self) -> None:
-        """No per-frame simulation needed; everything is event-driven."""
+        """Advance the victory fireworks, if any."""
+        if self.fireworks is not None:
+            self.fireworks.update(time.monotonic())
 
     def draw(self) -> None:
         """Draw the headline, the score and the name being typed."""
         self.renderer.clear()
+        if self.fireworks is not None:
+            self.renderer.draw_pixels(self.fireworks.pixels(), PIXEL_SIZE)
         self.renderer.draw_hud_title(WIN_TITLE if self.won else LOSE_TITLE)
         cursor_on = int(time.monotonic() / CURSOR_BLINK) % 2 == 0
         cursor = "_" if cursor_on else " "
