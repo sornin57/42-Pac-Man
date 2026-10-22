@@ -12,9 +12,11 @@ they lead to.
       | |                                 \\--Main menu--> main menu
       | \\--- highscores <-- name entry <--out of lives-- game
       |          ^          (saved only if it makes the top 10)
-      \\--Highscores
+      |\\--Highscores
+      \\--Instructions --Esc--> main menu
 """
 
+import logging
 import sys
 from pathlib import Path
 from typing import Protocol
@@ -26,6 +28,8 @@ from pacman.config.models import GameConfig
 from pacman.config.parser import load_config
 from pacman.game import Game
 from pacman.highscore import Highscore, load_scores, save_scores
+from pacman.log_setup import setup_logging
+from pacman.ui.fireworks import Fireworks
 from pacman.ui.menu import MenuAction
 from pacman.ui.renderer import Renderer
 from pacman.ui.screens.cheat_screen import CheatScreen
@@ -33,8 +37,11 @@ from pacman.ui.screens import end_screen, main_menu_screen
 from pacman.ui.screens.end_screen import EndScreen
 from pacman.ui.screens.game_screen import GameScreen
 from pacman.ui.screens.highscores_screen import HighscoresScreen
+from pacman.ui.screens.instructions_screen import InstructionsScreen
 from pacman.ui.screens.main_menu_screen import MainMenuScreen
 from pacman.ui.screens.pause_menu import PauseAction, PauseMenu
+
+logger = logging.getLogger(__name__)
 
 FPS = 60
 MAX_HIGHSCORES = 10
@@ -44,11 +51,14 @@ MENU_HIGHSCORES_MESSAGE = "BEAT THEM ALL!"
 class Screen(Protocol):
     """What every screen provides to the main loop."""
 
-    def handle_event(self, event: pygame.event.Event) -> None: ...
+    def handle_event(self, event: pygame.event.Event) -> None:
+        """React to one pygame event."""
 
-    def update(self) -> None: ...
+    def update(self) -> None:
+        """Advance this screen by one frame."""
 
-    def draw(self) -> None: ...
+    def draw(self) -> None:
+        """Draw this screen's frame."""
 
 
 class App:
@@ -86,6 +96,7 @@ class App:
         self.renderer.close()
 
     def _handle_events(self) -> None:
+        """Pass pending events to the top screen; closing the window quits."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -93,6 +104,7 @@ class App:
                 self.screen.handle_event(event)
 
     def _check_transition(self) -> None:
+        """Act on the flags the top screen raised this frame."""
         screen = self.screen
         if isinstance(screen, MainMenuScreen):
             self._from_main_menu(screen)
@@ -105,19 +117,24 @@ class App:
         elif isinstance(screen, EndScreen) and screen.done:
             if screen.saved_entry is not None:
                 self.highscores = screen.scores
-                self._save_highscores()
+                self._save_highscores(screen.saved_entry)
             self._show_final_highscores(
-                screen.score, screen.won, screen.saved_entry
+                screen.score, screen.won, screen.saved_entry,
+                screen.fireworks,
             )
         elif isinstance(screen, HighscoresScreen) and screen.done:
             self._to_main_menu()
+        elif isinstance(screen, InstructionsScreen) and screen.done:
+            self._to_main_menu()
 
     def _from_main_menu(self, menu: MainMenuScreen) -> None:
+        """Open the cheat menu or the chosen screen, or quit."""
         if menu.open_cheats:
             menu.open_cheats = False
             self._open_cheats(in_game=False)
         action, menu.chosen = menu.chosen, None
         if action is MenuAction.PLAY:
+            logger.info("New game started")
             self.game = Game(self.config)
             self.screens = [
                 GameScreen(self.game, self.renderer, self.config, self.cheats)
@@ -129,14 +146,22 @@ class App:
                 main_menu_screen.TITLE,
                 MENU_HIGHSCORES_MESSAGE,
             )]
+        elif action is MenuAction.INSTRUCTIONS:
+            self.screens = [InstructionsScreen(self.renderer, self.config)]
         elif action is MenuAction.QUIT:
             self.running = False
-        # INSTRUCTIONS: its screen doesn't exist yet.
 
     def _from_game(self, game_screen: GameScreen) -> None:
+        """Show the end screen after the game, the pause menu if asked."""
         if game_screen.finished:
             # The victory jingle, if earned, already played when the
             # win milestone was hit; running out of lives ends it all.
+            logger.info(
+                "Game over: score %d, level %d%s",
+                self.game.player.score,
+                self.game.current_level + 1,
+                ", winner" if game_screen.won else "",
+            )
             self.renderer.play_sound("game_over")
             self.screens = [EndScreen(
                 self.game.player.score,
@@ -151,6 +176,7 @@ class App:
             self.screens.append(PauseMenu(self.renderer, self._snapshot()))
 
     def _from_pause_menu(self, pause: PauseMenu) -> None:
+        """Open the cheat menu, resume, go to the main menu, or quit."""
         if pause.open_cheats:
             pause.open_cheats = False
             self._open_cheats(in_game=True)
@@ -163,15 +189,33 @@ class App:
             self.running = False
 
     def _from_cheats(self, cheats: CheatScreen) -> None:
+        """Close the cheat menu and apply its one-off requests.
+
+        Extra lives and skip level go to the game under the pause menu.
+        """
         if not cheats.done:
             return
         self.screens.pop()
+        if not cheats.extra_lives and not cheats.skip_level:
+            return
+        # One-off cheats only exist in game, so the stack is now
+        # [..., game, pause menu].
+        game_screen = self.screens[-2]
+        assert isinstance(game_screen, GameScreen)
+        for _ in range(cheats.extra_lives):
+            game_screen.add_life()
         if cheats.skip_level:
             # Straight back into the game, which starts the next level.
-            game_screen = self._close_pause_menu()
+            self._close_pause_menu()
             game_screen.skip_level()
 
     def _open_cheats(self, in_game: bool) -> None:
+        """Push the cheat menu over the current screen.
+
+        Args:
+            in_game: Opened from the pause menu, so one-off cheats are
+                offered.
+        """
         self.screens.append(CheatScreen(
             self.cheats, self.renderer, self._snapshot(), in_game
         ))
@@ -185,14 +229,27 @@ class App:
         return game_screen
 
     def _show_final_highscores(
-        self, score: int, won: bool, new_entry: Highscore | None
+        self,
+        score: int,
+        won: bool,
+        new_entry: Highscore | None,
+        fireworks: Fireworks | None = None,
     ) -> None:
+        """Replace every screen with the highscore table after a game.
+
+        Args:
+            score: The finished game's score.
+            won: Whether the win milestone was reached.
+            new_entry: The just-saved entry, highlighted (None if none).
+            fireworks: The victory show to carry on, if any.
+        """
         if won:
             title, message = end_screen.WIN_TITLE, end_screen.WIN_MESSAGE
         else:
             title, message = end_screen.LOSE_TITLE, end_screen.LOSE_MESSAGE
         self.screens = [HighscoresScreen(
-            self.highscores, self.renderer, title, message, score, new_entry
+            self.highscores, self.renderer, title, message, score,
+            new_entry, fireworks,
         )]
 
     def _load_highscores(self) -> list[Highscore]:
@@ -204,21 +261,35 @@ class App:
         """
         try:
             scores = load_scores(self.config.highscore_filename)
-        except (ValueError, OSError):  # incl. bad JSON / bad encoding
+        except (ValueError, OSError) as error:  # incl. bad JSON/encoding
+            logger.error(
+                "Highscores not loaded from %s, starting with none: %s",
+                self.config.highscore_filename, error,
+            )
             return []
         scores.sort(key=lambda entry: entry.score, reverse=True)
         return scores[:MAX_HIGHSCORES]
 
-    def _save_highscores(self) -> None:
-        """Write the highscore file; failing to save mustn't crash."""
+    def _save_highscores(self, new_entry: Highscore) -> None:
+        """Write the highscore file; failing to save mustn't crash.
+
+        Args:
+            new_entry: The entry just added, named in the log.
+        """
         path = Path(self.config.highscore_filename)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             save_scores(str(path), self.highscores)
-        except OSError:
-            pass
+        except OSError as error:
+            logger.error("Highscores not saved to %s: %s", path, error)
+        else:
+            logger.info(
+                "Highscore saved: %s, %d points, to %s",
+                new_entry.name, new_entry.score, path,
+            )
 
     def _to_main_menu(self) -> None:
+        """Replace every screen with a fresh main menu."""
         self.screens = [MainMenuScreen(self.renderer)]
 
     def _snapshot(self) -> pygame.Surface:
@@ -227,12 +298,34 @@ class App:
 
 
 def main() -> None:
-    """Load the config named on the command line and run the app."""
-    if len(sys.argv) != 2:
-        print("Usage: python3 pac-man.py <config.json>")
-        return
-    config = load_config(sys.argv[1])
-    App(config).run()
+    """Load the config named on the command line and run the app.
+
+    Without an argument, the defaults from models.py are used.
+
+    Anything unexpected ends up here instead of as a traceback: the
+    full details go to the log, the player gets one short line.
+    """
+    log_path = setup_logging()
+    if len(sys.argv) > 2:
+        logger.error(
+            "Only one argument expected, ignored: %s", " ".join(sys.argv[2:])
+        )
+    try:
+        if len(sys.argv) < 2:
+            # E.g. the packaged game opened with a double-click.
+            logger.info("No config given, using the defaults")
+            config = GameConfig()
+        else:
+            logger.info("Starting with config %s", sys.argv[1])
+            config = load_config(sys.argv[1])
+        App(config).run()
+    except Exception:
+        logger.exception("Unexpected error, the game stopped")
+        pygame.quit()
+        details = f" Details: {log_path}" if log_path else ""
+        print(f"Pac-Man hit an unexpected error.{details}", file=sys.stderr)
+        sys.exit(1)
+    logger.info("Game closed")
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+"""One game session: the current level, the player and progress."""
 
 
 from pacman.player import Player
@@ -6,7 +7,13 @@ from pacman.config.models import GameConfig
 
 
 class Game:
+    """Hold one game in progress: level number, level and player."""
     def __init__(self, config: GameConfig):
+        """Start at the first level, with the player in its center.
+
+        Args:
+            config: Loaded game configuration.
+        """
         self.current_level = 0
         self.cheat_mode = False
         self.config = config
@@ -19,6 +26,7 @@ class Game:
         self.cheat_mode = not self.cheat_mode
 
     def next_level(self) -> None:
+        """Generate the next level and move the player to its center."""
         self.current_level += 1
         self.level = Level(self.current_level, self.config)
 

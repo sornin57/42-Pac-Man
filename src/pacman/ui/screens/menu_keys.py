@@ -17,6 +17,15 @@ def is_cheat_chord(event: pygame.event.Event) -> bool:
     )
 
 
+def is_cheat_next_level(event: pygame.event.Event) -> bool:
+    """True for the cheat Next Level shortcut: L pressed while N is held."""
+    return (
+        event.type == pygame.KEYDOWN
+        and event.key == pygame.K_l
+        and bool(pygame.key.get_pressed()[pygame.K_n])
+    )
+
+
 def wrap(index: int, step: int, count: int) -> int:
     """Move `index` by `step` through `count` items, wrapping around."""
     return (index + step) % count

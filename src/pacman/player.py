@@ -5,10 +5,16 @@ from pacman.maze import Direction, Maze
 
 
 class Player:
+    """Pac-Man: position, movement, score, lives and power-up state."""
     def __init__(
         self, config: GameConfig, position: tuple[int, int],
         name: str = "The best of the best",
     ) -> None:
+        """Args:
+            config: Loaded game configuration (lives, points).
+            position: Spawn cell, the maze center.
+            name: Player name.
+        """
         self.name: str = name
         self.position: tuple[int, int] = position
         self.spawn_position: tuple[int, int] = position
@@ -20,6 +26,7 @@ class Player:
         self.next_direction: Direction | None = None
 
     def move(self, direction: Direction, maze: Maze) -> None:
+        """Step one cell in `direction`, unless a wall blocks it."""
         if maze.has_wall(*self.position, direction):
             return
         x, y = self.position
@@ -58,13 +65,16 @@ class Player:
         return self.position != before
 
     def eat_pacgum(self) -> None:
+        """Add the points for a pacgum."""
         self.score += self.config.points_per_pacgum
 
     def eat_superpacgum(self) -> None:
+        """Add the points for a super-pacgum and power up."""
         self.score += self.config.points_per_super_pacgum
         self.power_up()
 
     def eat_ghost(self) -> None:
+        """Add the points for an eaten ghost."""
         self.score += self.config.points_per_ghost
 
     def lose_life(self) -> bool:
@@ -87,11 +97,14 @@ class Player:
         self.next_direction = None
 
     def gain_life(self) -> None:
+        """Add one life."""
         self.lives += 1
         # TODO: maybe add a beating heart animation or sound effect
 
     def power_up(self) -> None:
+        """Mark Pac-Man as powered up: ghosts can be eaten."""
         self.powered_up = True
 
     def power_down(self) -> None:
+        """End the power-up."""
         self.powered_up = False

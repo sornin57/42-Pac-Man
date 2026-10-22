@@ -1,11 +1,26 @@
+# Pac-Man configuration. Start the game with:  python3 pac-man.py config/default.json
+# Lines starting with # are comments. Any key may be left out: its default
+# is used. Wrong or out-of-range values are fixed and noted in logs/pacman.log.
 {
+  # Where the top 10 is saved, relative to the folder the game is started from.
   "highscore_filename": "data/highscores.json",
+
+  # Lives at the start of a game (1..9).
   "lives": 3,
+
+  # Points per pacgum (0..1000), super-pacgum (0..5000) and eaten ghost (0..10000).
   "points_per_pacgum": 10,
   "points_per_super_pacgum": 50,
   "points_per_ghost": 200,
+
+  # Maze seed for the first level only; later levels are random. 0 = random too.
   "seed": 42,
+
+  # Seconds per level (10..3600). Time up: a life is lost and the level restarts.
   "level_max_time": 300,
+
+  # Maze size per level, in cells (5..99 each side). After the last entry,
+  # every new level grows by one cell per side, up to 41.
   "levels": [
     {
       "width": 15,

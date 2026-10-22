@@ -62,6 +62,7 @@ class PauseMenu:
             self.chosen = PauseAction.RESUME
 
     def _move(self, step: int) -> None:
+        """Move the selection by `step`, wrapping around."""
         self.selected_index = wrap(
             self.selected_index, step, len(self.ACTIONS)
         )

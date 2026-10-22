@@ -20,6 +20,11 @@ class Direction(Enum):
     WEST = (8, -1, 0)
 
     def __init__(self, wall_bit: int, dx: int, dy: int) -> None:
+        """Args:
+            wall_bit: This side's bit in a cell's wall bitmask.
+            dx: Column step when moving this way.
+            dy: Row step when moving this way.
+        """
         self.wall_bit = wall_bit
         self.dx = dx
         self.dy = dy

@@ -5,6 +5,7 @@ sprites/sounds, and knows how to turn grid coordinates into pixels --
 it has no opinion about game state or which screen is active.
 """
 
+import logging
 from pathlib import Path
 
 import pygame
@@ -16,6 +17,8 @@ from pacman.player import Player
 Cell = tuple[int, int]
 Point = tuple[float, float]  # a cell position, possibly between cells
 Color = tuple[int, int, int]
+
+logger = logging.getLogger(__name__)
 
 ASSET_DIR = Path(__file__).resolve().parent / "assets"
 SPRITE_DIR = ASSET_DIR / "sprites"
@@ -59,6 +62,7 @@ _BG_SCALE = WINDOW_SIZE[0] / _BG_LOGICAL_SIZE
 
 
 def _bg_zone(x0: int, y0: int, x1: int, y1: int) -> pygame.Rect:
+    """Turn a rectangle on background.png's 400x400 grid into pixels."""
     return pygame.Rect(
         round(x0 * _BG_SCALE), round(y0 * _BG_SCALE),
         round((x1 - x0) * _BG_SCALE), round((y1 - y0) * _BG_SCALE),
@@ -74,6 +78,10 @@ MESSAGE_PADDING_Y = 14
 MESSAGE_LINE_GAP = 4
 # Inside the top strip's inner frame line.
 HUD_ZONE = _bg_zone(6, 6, 393, 38)
+# Where victory fireworks fly: between the HUD strip and the plate.
+FIREWORKS_ZONE = pygame.Rect(
+    0, HUD_ZONE.bottom, WINDOW_SIZE[0], MESSAGE_ZONE.top - HUD_ZONE.bottom
+)
 
 # HUD items, left to right; icons made by tools/make_hud_icons.py.
 HUD_ICONS = ("hud_level", "hud_lives", "hud_score", "hud_time")
@@ -124,6 +132,7 @@ def _load_font(path: Path, size: int) -> pygame.font.Font:
     """Load the font at `path`, or pygame's bundled one if missing."""
     if path.exists():
         return pygame.font.Font(str(path), size)
+    logger.error("Font not found: %s, using pygame's default", path)
     return pygame.font.Font(None, size)
 
 
@@ -180,6 +189,7 @@ class Renderer:
         ]
 
         self.sprites = self._load_sprites()
+        self._report_missing_sprites()
         self.sprites.update(self._add_turned_pacman_frames())
 
         # Scaled once here rather than every frame; nearest-neighbour
@@ -195,14 +205,36 @@ class Renderer:
         self.music_loaded = self._load_music()
 
     def _load_sprites(self) -> dict[str, pygame.Surface]:
+        """Load every sprite, keyed by its file name without extension."""
         # Recursive: sprites live under per-creature subfolders
         # (sprites/pacman/, sprites/blinky/, ...), keyed by filename
         # alone so lookups (pacman_sprite_name, ghost_sprite_name)
         # don't need to know which folder a sprite lives in.
-        return {
-            path.stem: pygame.image.load(str(path)).convert_alpha()
-            for path in SPRITE_DIR.rglob("*.png")
-        }
+        sprites: dict[str, pygame.Surface] = {}
+        for path in SPRITE_DIR.rglob("*.png"):
+            try:
+                sprite = pygame.image.load(str(path)).convert_alpha()
+            except pygame.error as error:
+                logger.error("Sprite not loaded: %s: %s", path, error)
+                continue
+            sprites[path.stem] = sprite
+        return sprites
+
+    def _report_missing_sprites(self) -> None:
+        """Log the optional sprites with no file.
+
+        Drawing copes without these (no background, no HUD icon, a
+        Pac-Man frame skipped), so nothing else would ever say they're
+        gone. Checked once here: drawing runs every frame.
+        """
+        optional = [
+            "background",
+            *HUD_ICONS,
+            *(f"pacman_{frame}" for frame in range(PACMAN_FRAMES)),
+        ]
+        for name in optional:
+            if name not in self.sprites:
+                logger.error("Sprite missing: %s.png, drawn without it", name)
 
     def _add_turned_pacman_frames(self) -> dict[str, pygame.Surface]:
         """Turn each east-facing Pac-Man frame to face all 4 directions.
@@ -227,18 +259,24 @@ class Renderer:
         return sprites
 
     def _load_sounds(self) -> dict[str, pygame.mixer.Sound]:
+        """Load the sound effects, or none if there's no audio device."""
         # Some machines (headless VMs, CI, hardware without audio) have
         # no working audio device. Sound is a nice-to-have, not core
         # gameplay, so missing audio must not crash the whole renderer.
         if pygame.mixer.get_init() is None:
             try:
                 pygame.mixer.init()
-            except pygame.error:
+            except pygame.error as error:
+                logger.error("No audio, playing without sound: %s", error)
                 return {}
-        return {
-            path.stem: pygame.mixer.Sound(str(path))
-            for path in SOUND_DIR.glob("*.wav")
-        }
+        # A broken file only loses its own sound (play_sound skips it).
+        sounds: dict[str, pygame.mixer.Sound] = {}
+        for path in SOUND_DIR.glob("*.wav"):
+            try:
+                sounds[path.stem] = pygame.mixer.Sound(str(path))
+            except pygame.error as error:
+                logger.error("Sound not loaded: %s: %s", path, error)
+        return sounds
 
     def _load_music(self) -> bool:
         """Load the background music track, if audio is available.
@@ -246,12 +284,16 @@ class Renderer:
         Returns:
             True if `pygame.mixer.music` is ready to play it.
         """
-        if pygame.mixer.get_init() is None or not MUSIC_PATH.exists():
+        if pygame.mixer.get_init() is None:
+            return False  # no audio: already logged by _load_sounds
+        if not MUSIC_PATH.exists():
+            logger.error("Music not found: %s", MUSIC_PATH)
             return False
         try:
             pygame.mixer.music.load(str(MUSIC_PATH))
             return True
-        except pygame.error:
+        except pygame.error as error:
+            logger.error("Music not loaded: %s: %s", MUSIC_PATH, error)
             return False
 
     def set_level_size(self, width: int, height: int) -> None:
@@ -367,12 +409,18 @@ class Renderer:
                 self._draw_cell_walls(maze, x, y)
 
     def _fill_cell(self, x: int, y: int, color: Color) -> None:
+        """Fill maze cell (x, y) with `color`."""
         px, py = self.cell_to_pixel((x, y))
         pygame.draw.rect(
             self.screen, color, (px, py, self.cell_size, self.cell_size)
         )
 
     def _draw_cell_walls(self, maze: Maze, x: int, y: int) -> None:
+        """Draw the walls of cell (x, y).
+
+        Each cell draws its north and west walls; the last column and row
+        also draw east and south, so every shared wall is drawn once.
+        """
         px, py = self.cell_to_pixel((x, y))
         size = self.cell_size
         if maze.has_wall(x, y, Direction.NORTH):
@@ -404,6 +452,7 @@ class Renderer:
             self._draw_dot(cell, self.cell_size // 4)
 
     def _draw_dot(self, cell: Cell, radius: int) -> None:
+        """Draw a dot of `radius` pixels (at least 2) centered on `cell`."""
         px, py = self.cell_to_pixel(cell)
         center = (px + self.cell_size // 2, py + self.cell_size // 2)
         pygame.draw.circle(self.screen, PACGUM_COLOR, center, max(2, radius))
@@ -416,9 +465,12 @@ class Renderer:
         self.screen.blit(surface, position)
 
     def draw_hud(
-        self, score: int, lives: int, level: int, time_remaining: int
+        self, score: int, lives: int, level: int, time_remaining: int | None
     ) -> None:
         """Draw level/lives/score/time in the background's top strip.
+
+        `time_remaining` is None when the timer is off (cheat): the time
+        slot then shows "--".
 
         Each item is an icon followed by its number, left-aligned in
         its own quarter of the strip. Icons and digits are centered on
@@ -433,9 +485,10 @@ class Renderer:
             if icon is not None:
                 self.screen.blit(icon, (x, _visible_top(icon)))
             x += HUD_ICON_SIZE + HUD_ICON_GAP
-            self._draw_hud_number(str(value), x)
+            self._draw_hud_number("--" if value is None else str(value), x)
 
     def _draw_hud_number(self, text: str, left: int) -> None:
+        """Draw `text` in the HUD font with its shadow, from `left`."""
         shadow = self.hud_font.render(text, True, HUD_SHADOW_COLOR)
         surface = self.hud_font.render(text, True, TEXT_COLOR)
         position = (left, _visible_top(surface))
@@ -452,6 +505,13 @@ class Renderer:
         with its top-left corner at `position`."""
         surface = self.title_font.render(text, True, color)
         self.screen.blit(surface, position)
+
+    def draw_pixels(
+        self, pixels: list[tuple[int, int, Color]], size: int
+    ) -> None:
+        """Draw square `size`-pixel dots (e.g. firework sparks)."""
+        for x, y, color in pixels:
+            pygame.draw.rect(self.screen, color, (x, y, size, size))
 
     def draw_hud_title(self, text: str) -> None:
         """Draw a big title ("PAC-MAN") centered in the HUD strip."""
@@ -478,6 +538,11 @@ class Renderer:
             self.screen.blit(surface, surface.get_rect(midtop=center))
 
     def _fit_message(self, text: str) -> tuple[pygame.font.Font, list[str]]:
+        """Pick the biggest message font at which `text` fits the plate.
+
+        Returns:
+            The font, and `text` wrapped into lines.
+        """
         width = MESSAGE_ZONE.width - 2 * MESSAGE_PADDING_X
         height = MESSAGE_ZONE.height - 2 * MESSAGE_PADDING_Y
         for font in self.message_fonts:

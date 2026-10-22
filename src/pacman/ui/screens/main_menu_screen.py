@@ -25,6 +25,9 @@ class MainMenuScreen:
     """Show the main menu and report the chosen action."""
 
     def __init__(self, renderer: Renderer) -> None:
+        """Args:
+            renderer: Shared drawing toolbox.
+        """
         self.renderer = renderer
         self.menu = Menu()
         self.chosen: MenuAction | None = None
