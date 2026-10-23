@@ -103,6 +103,8 @@ class GameScreen:
         self.cheats = cheats if cheats is not None else Cheats()
         self.pause_requested = False
         self._suspended_at = 0.0
+        # To spot the timer cheat being switched back on (see resume).
+        self._timer_was_off = self.cheats.timer_off
         self._message = ""
         self._message_until = 0.0
         self.facing = Direction.EAST
@@ -178,6 +180,11 @@ class GameScreen:
         # from where they were instead of snapping back.
         self._last_ghost_move += suspended_for
         self._last_player_move += suspended_for
+        # Timer cheat switched back on: the level gets its full time
+        # again, rather than counting the time it was off.
+        if self._timer_was_off and not self.cheats.timer_off:
+            self._reset_clock()
+        self._timer_was_off = self.cheats.timer_off
 
     def _shift_clocks(self, delta: float) -> None:
         """Push every running deadline `delta` seconds later."""

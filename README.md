@@ -321,13 +321,6 @@ Modern pixel fonts recreate this appearance intentionally. By combining Press St
 **What did not change.** Collisions, eating dots and the ghosts' decisions still use whole cells, exactly as before. Smooth movement is purely a drawing effect, so it cannot change how the game plays. The only visible side effect is that a character is drawn up to one step behind its real cell, so a collision can register a moment before the two sprites visibly touch. At these speeds it is barely noticeable.
 
 
-# TODO
-
-- Add a Highscore section.
-- Add an implementation summary.
-- Add a general software architecture overview.
-- Add a project management overview and link to its documentation.
-
 # Resources
 
 Video tutorial  "Pygame in 18 Minutes"

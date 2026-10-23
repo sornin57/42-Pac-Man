@@ -57,6 +57,7 @@ exe = EXE(
     # No terminal window next to the game (Windows/macOS). Errors then
     # can't be printed for the player, which is why they go to a log.
     console=False,
+    contents_directory=".internal",
 )
 
 # "One folder" build rather than --onefile: --onefile unpacks itself to
