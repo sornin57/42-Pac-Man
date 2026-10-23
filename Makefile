@@ -25,7 +25,7 @@ lint-strict:
 	uv run mypy . --strict
 
 test:
-	uv run pytest
+	PYTHONPATH=src uv run pytest
 
 check: lint test
 
