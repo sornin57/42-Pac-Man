@@ -1,172 +1,122 @@
 _This project has been created as part of the 42 curriculum by msornin, nkoveshn._
 
-# Pac-Man
+# Pac-Man: Ghosts! More Ghosts!
 
-This project is a Python implementation of Pac-Man created as part of
-the 42 curriculum. It uses an assigned external maze generator through
-an adapter so that the game logic remains independent from the package.
+## Description
 
+This 42 curriculum project is a playable Pac-Man game written in Python and
+Pygame. Clear at least ten procedurally generated mazes while four ghosts
+chase you. Collect dots and power pellets, preserve your score and lives
+between levels, and enter your name for the persistent top-ten table when
+you win or lose. The assigned A-Maze-ing package generates the mazes through
+an adapter; its source is not modified.
 
-# Quick start
+## Instructions
 
-Install the project and its development tools:
+Use Python 3.10 through 3.13, `uv`, and `make` from the repository root:
 
 ```bash
 make install
-```
-
-Run the current project entry point:
-
-```bash
 make run
 ```
 
-Run the interactive terminal demonstration for ghost movement:
-
-```bash
-make demo-ghost
-```
-
-Run linting, static type checking, and all tests:
-
-```bash
-make check
-```
-
-The terminal demonstration uses the following controls:
-
-- `Z` or `W`: move Pac-Man up;
-- `S`: move Pac-Man down;
-- `Q` or `A`: move Pac-Man left;
-- `D`: move Pac-Man right;
-- `X`: exit the demonstration.
-
-
-# Installation
-
-Python 3.10 or newer is required.
-
-```bash
-make install
-```
-
-The installation rule installs `flake8`, `mypy`, `pytest`, and the
-assigned `mazegenerator` wheel included in the repository.
-
-
-# Usage
-
-Run the project with a configuration file:
+The required command-line form is:
 
 ```bash
 python3 pac-man.py config/default.json
 ```
 
-The same command is available through the Makefile:
+The source entry point requires exactly one config-file argument. An invalid
+or missing file falls back to safe defaults and records the problem in
+`logs/pacman.log`. A packaged executable can also be opened without an
+argument; it then reads its adjacent `config/default.json`.
 
-```bash
-make run
-```
+Controls: arrow keys or WASD move, `P` or `Esc` pauses, arrow keys select
+menu items, and `Enter` confirms. From the main or pause menu, hold `C` and
+press `H` for the evaluation cheat menu (invincibility, ghost freeze, timer,
+level skip, and extra lives). The in-game Instructions screen explains the
+rules. The game ends after all configured levels, with a minimum of ten.
 
-The game loop is not connected yet. For now, the command loads,
-validates, and displays the resulting configuration.
+For a standalone macOS build, run `make package-mac` on a Mac. For Linux,
+run `make package-linux` on Linux. PyInstaller builds are native, not
+cross-compiled. The archives include `packaging/README.txt` and an editable
+config. The macOS archive in `dist/PacMan-mac.zip` targets Apple Silicon;
+the Linux x86_64 archive is `dist/PacMan-linux.tar.gz`. Both extracted
+archives passed headless launch checks, but a full desktop playthrough
+remains necessary. A downloadable itch.io release is not complete until
+its files are attached and tested by a visitor.
 
+## Configuration
 
-# Current status
+`config/default.json` is JSON with `#` comments outside quoted strings.
+Unknown keys are ignored. Missing or invalid values use defaults; numeric
+values are clamped, and problems are logged without a Python traceback.
 
-The project currently includes:
+| Key | Default | Accepted values |
+| --- | --- | --- |
+| `highscore_filename` | `data/highscores.json` | Non-empty path |
+| `lives` | `3` | 1 to 9 |
+| `points_per_pacgum` | `10` | 0 to 1000 |
+| `points_per_super_pacgum` | `50` | 0 to 5000 |
+| `points_per_ghost` | `200` | 0 to 10000 |
+| `seed` | `42` | 0 to 2147483647 |
+| `level_max_time` | `300` seconds | 10 to 3600 |
+| `levels` | one 15 x 15 maze | Array of `{ "width": 15, "height": 15 }`; each side 5 to 41 |
 
-- a validated internal `Maze` model;
-- an adapter for the assigned A-Maze-ing package;
-- a safe JSON configuration parser;
-- initial `Game`, `Level`, `Player`, and `Ghost` classes;
-- basic shortest-path movement for Blinky;
-- unit and integration tests;
-- a terminal tool for manually testing ghost movement.
+Only level one uses the configured seed (`0` means random); later mazes are
+random. If fewer than ten level sizes are listed, each further level grows
+by one cell per side, up to 41. Time expiry costs one life and restarts the
+current level.
 
-Pygame rendering, the complete game loop, collisions, scores, remaining
-ghost strategies, menus, and highscores are not connected yet.
+## Highscore
 
+Scores are stored as a JSON list in `highscore_filename`, sorted highest
+first and limited to ten entries. Names have at most ten alphanumeric or
+space characters; scores are non-negative integers. The game loads the file
+at startup and saves qualifying scores after the name-entry screen. Missing
+or damaged files produce an empty table and a log message rather than
+stopping play. JSON keeps the data easy to inspect during peer review.
 
-# Architecture
+## Implementation
 
-The main objects are separated by responsibility:
+The Pygame loop handles events, updates the active screen, and draws at
+60 frames per second. Movement and collisions use maze cells; rendering
+interpolates between cells for smooth sprites. Pacgums increase the score,
+power pellets make ghosts edible briefly, and eaten ghosts return home.
+Blinky chases Pac-Man, Pinky aims ahead, Inky picks an approach away from
+Blinky, and Clyde retreats home when near Pac-Man. The game ends after the
+last required level or when no lives remain. A win or loss leads through
+name entry and highscores back to the main menu.
+
+## General Software Architecture
 
 ```text
-pac-man.py
-    |
-    v
-GameConfig
-    |
-    v
-Game
-|-- Player
-`-- Level
-    |-- Maze
-    |-- pacgums
-    `-- Ghosts
+pac-man.py -> config parser -> GameConfig -> App (screen navigation)
+                                      |-- Game -> Player
+                                      |       `-- Level -> Maze, dots, Ghosts
+                                      |                    `-- MazeAdapter -> mazegenerator
+                                      |-- Pygame Renderer and UI screens
+                                      `-- JSON highscores and rotating logs
 ```
 
-- `pac-man.py` reads the command-line argument and loads configuration.
-- `GameConfig` contains validated and immutable settings.
-- `Game` will coordinate the game rules and current state.
-- `Player` stores the player's position, score, lives, and power state.
-- `Level` groups the maze, pacgums, super-pacgums, and ghosts.
-- `Maze` validates walls and provides neighbors and shortest paths.
-- `Ghost` contains behavior shared by the four ghost classes.
-- `MazeAdapter` is the only component that imports `mazegenerator`.
+`Game` owns progress; `Level` owns the generated maze, collectibles and
+ghosts; `Maze` validates and queries paths; `MazeAdapter` is the only code
+calling the assigned generator. The UI screens report actions to `App`
+instead of controlling each other directly. Tests cover each layer and
+their integration.
 
-
-# Configuration
-
-Configuration is read from a JSON file. Lines may contain comments
-starting with `#`. Unknown keys are ignored. Missing or invalid values
-use safe defaults, and numeric values outside their accepted range are
-clamped.
-
-Example:
-
-```json
-{
-  "lives": 3,
-  "seed": 42,
-  "level_max_time": 300,
-  "levels": [
-    {
-      "width": 21,
-      "height": 21
-    }
-  ]
-}
-```
-
-Supported keys:
-
-- `highscore_filename`: path to the highscore file;
-- `lives`: number of player lives;
-- `points_per_pacgum`: points awarded for a pacgum;
-- `points_per_super_pacgum`: points awarded for a super-pacgum;
-- `points_per_ghost`: points awarded for eating a ghost;
-- `seed`: maze generation seed;
-- `level_max_time`: maximum level duration in seconds;
-- `levels`: list of level dimensions.
-
-
-# Development
-
-Run all style, type, and unit checks:
+## Development
 
 ```bash
-make check
-```
-
-Individual commands are also available:
-
-```bash
+make check       # flake8, mypy and pytest
 make lint
 make test
-make clean
+make debug       # Python debugger
+make demo-ghost  # terminal-only movement demonstration
 ```
+
+`make clean` removes generated caches, environments, logs and build
+artifacts; do not use it if you need to keep a local environment or build.
 
 
 ## Ghost movement demo
@@ -182,23 +132,16 @@ draws the maze and its walls in the terminal:
 +---+---+---+---+---+
 ```
 
-`P` represents Pac-Man, `B` represents Blinky, and `X` is displayed
-when they occupy the same cell. After each valid Pac-Man movement,
-Blinky asks `Maze.shortest_path()` for a route and advances by exactly
-one cell.
-
-The demo deliberately has no dependency on Pygame. It tests game logic
-independently from future rendering code.
+`P` represents Pac-Man, `B` represents Blinky, and `X` marks a shared
+cell. The demo is independent of the Pygame renderer. Use `Z`/`W` to
+move up, `S` down, `Q`/`A` left, `D` right, and `X` to quit.
 
 
 ## Tests
 
-The test suite currently covers:
-
-- maze construction, validation, walls, and neighbors;
-- integration with the external maze generator;
-- configuration parsing, defaults, limits, and malformed files;
-- Blinky's initial state and basic movement toward Pac-Man.
+The test suite covers maze validation and integration, config and score
+file errors, ghost personalities, controls and cheat menus, instructions,
+and the win/loss-to-highscore flow.
 
 Tests can be run separately with:
 
@@ -265,16 +208,15 @@ for name, method in inspect.getmembers(
 This approach allows MazeAdapter to be adjusted to the assigned generator interface while keeping the rest of the project independent from the external package.
 
 
+## Visual Design
+
 ### Typography and Arcade Inspiration
 
 The visual design of Pac-Man is inspired by classic arcade games of the late 1970s and early 1980s. We wanted to preserve their recognizable pixel-based appearance while keeping the interface clear and readable on modern screens.
 
-We chose two fonts with complementary purposes:
-
-- **Press Start 2P** — used for titles, menus, and important messages such as *GAME OVER* and *VICTORY*. Its distinctive pixelated lettering recreates the atmosphere of early arcade machines.
-- **Silkscreen** — used for scores, lives, timers, and other interface elements. Its simpler, more compact characters are easier to read at smaller sizes.
-
-Both fonts are available under the SIL Open Font License (OFL), allowing them to be bundled with the game under the license's conditions.
+We use **Press Start 2P** for titles, menus and status text. Its
+pixelated lettering recalls early arcade machines. Its SIL Open Font
+License notice is bundled with the font.
 
 #### A Brief History of Arcade Typography
 
@@ -284,11 +226,11 @@ Letters and numbers were often designed using fixed-size bitmap grids, such as 8
 
 These technical limitations shaped the visual identity of early video games: blocky letters, simple geometric forms, limited colors, and uppercase text became characteristic features of arcade typography.
 
-Modern pixel fonts recreate this appearance intentionally. By combining Press Start 2P with Silkscreen, we pay tribute to the history of arcade games while maintaining a practical, readable interface.
+Modern pixel fonts recreate this appearance intentionally. Press Start
+2P carries the arcade style while the HUD remains readable.
 
 **Font sources:**
 - [Press Start 2P — Google Fonts](https://fonts.google.com/specimen/Press+Start+2P)
-- [Silkscreen — Google Fonts](https://fonts.google.com/specimen/Silkscreen)
 
 ### Pac-Man Mouth Animation
 
@@ -321,25 +263,32 @@ Modern pixel fonts recreate this appearance intentionally. By combining Press St
 **What did not change.** Collisions, eating dots and the ghosts' decisions still use whole cells, exactly as before. Smooth movement is purely a drawing effect, so it cannot change how the game plays. The only visible side effect is that a character is drawn up to one step behind its real cell, so a collision can register a moment before the two sprites visibly touch. At these speeds it is barely noticeable.
 
 
-# Resources
+## Project Management
 
-Video tutorial  "Pygame in 18 Minutes"
-https://www.youtube.com/watch?v=blLLtdv4tvo
+The work was divided between maze integration, configuration and CI,
+gameplay, visual design, and packaging. Git branches, pull requests,
+reviews, and CI checks were used to integrate the work. The
+[project-management directory](docs/project_management/README.md) records
+the division of work, decisions, risks, and acceptance checks. Release
+testing and the itch.io download remain separate from the source-code checks.
 
-Background music "8bit Music for Game" by freesound_community (Freesound user annoyedCactus)
-https://pixabay.com/sound-effects/musical-8bit-music-for-game-68698/
-Licensed under the Pixabay Content License (attribution not required, credited here anyway)
+## Resources
 
-Using Spec Files https://pyinstaller.org/en/stable/spec-files.html
-logging — Logging facility for Python https://docs.python.org/3/library/logging.html
+- [Python documentation](https://docs.python.org/3/) for the language,
+  standard library, typing, JSON, and logging.
+- [Pygame documentation](https://www.pygame.org/docs/) and the
+  [Pygame in 18 Minutes tutorial](https://www.youtube.com/watch?v=blLLtdv4tvo)
+  for the event loop and rendering.
+- [PyInstaller spec-file documentation](https://pyinstaller.org/en/stable/spec-files.html)
+  for standalone builds.
+- [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P),
+  distributed under the SIL Open Font License 1.1. Its license is kept in
+  `src/pacman/ui/assets/fonts/Press_Start_2P/OFL.txt`.
+- [8bit Music for Game](https://pixabay.com/sound-effects/musical-8bit-music-for-game-68698/),
+  credited to freesound_community (annoyedCactus) under the Pixabay Content
+  License.
 
-
-### Third-Party Assets and Licenses
-
-This project uses the following open-source fonts:
-
-- **Press Start 2P** — available from [Google Fonts](https://fonts.google.com/specimen/Press+Start+2P).
-
-It's distributed under the **SIL Open Font License 1.1 (OFL)**. Its original copyright notice and license text are preserved in `src/pacman/assets/fonts/`.
-
-All third-party assets are used in accordance with their respective licenses.
+Generative AI helped draft some tests, code (including parts of the config,
+ghost, and UI work), and explanatory text. We reviewed and adjusted those
+outputs against the subject and ran flake8, mypy, pytest, and manual checks;
+the project remains the authors' responsibility.

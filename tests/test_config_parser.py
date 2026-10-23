@@ -66,6 +66,19 @@ def test_invalid_values_use_defaults_and_limits(tmp_path: Path) -> None:
     assert config.level_max_time == 3600
 
 
+def test_level_dimensions_fit_the_renderer(tmp_path: Path) -> None:
+    """Clamp oversized configured mazes before they reach the game."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps({"levels": [{"width": 99, "height": 100}]}),
+        encoding="utf-8",
+    )
+
+    assert load_config(str(config_file)).levels == [
+        LevelConfig(width=41, height=41)
+    ]
+
+
 def test_missing_or_invalid_file_uses_default_config(tmp_path: Path) -> None:
     """Fall back to default settings when the file cannot be parsed."""
     missing_file = tmp_path / "missing.json"

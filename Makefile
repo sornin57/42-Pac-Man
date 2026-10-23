@@ -17,12 +17,12 @@ clean:
 	rm -rf build dist logs
 
 lint:
-	uv run flake8 src pac-man.py
-	uv run mypy src pac-man.py --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	uv run flake8 .
+	uv run mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	uv run flake8 src pac-man.py
-	uv run mypy src pac-man.py --strict
+	uv run flake8 .
+	uv run mypy . --strict
 
 test:
 	uv run pytest

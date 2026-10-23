@@ -17,7 +17,7 @@ def load_scores(path: str) -> list[Highscore]:
             data = json.load(file)
     except FileNotFoundError:
         return []
-    except json.JSONDecodeError as error:
+    except (json.JSONDecodeError, UnicodeError) as error:
         raise ValueError("Invalid highscore JSON file") from error
 
     if not isinstance(data, list):
@@ -30,7 +30,12 @@ def load_scores(path: str) -> list[Highscore]:
 
         name = entry.get("name")
         score = entry.get("score")
-        if not isinstance(name, str) or not name.strip():
+        if (
+            not isinstance(name, str)
+            or not name.strip()
+            or len(name) > 10
+            or any(not (char.isalnum() or char == " ") for char in name)
+        ):
             raise ValueError("Invalid highscore name")
         if type(score) is not int or score < 0:
             raise ValueError("Invalid highscore score")

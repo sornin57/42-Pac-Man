@@ -21,10 +21,9 @@ Linux
   Open a terminal in this folder and run:
     ./PacMan
 
-Started with a double-click, the game uses its default settings, and
-highscores and logs may not be saved (see SAVED FILES). To use the
-config file and keep your highscores, start it from a terminal in this
-folder:
+Started with a double-click, the game reads config/default.json and
+saves highscores and logs in this folder, if it is writable. To use a
+different config file, start it from a terminal in this folder:
   macOS:  PacMan.app/Contents/MacOS/PacMan config/default.json
   Linux:  ./PacMan config/default.json
 
@@ -71,7 +70,7 @@ in logs/pacman.log.
   points_per_ghost          200                    0 .. 10000
   seed                      42                     0 .. 2147483647
   level_max_time            300 (seconds)          10 .. 3600
-  levels                    [{"width": 15,         5 .. 99 per side
+  levels                    [{"width": 15,         5 .. 41 per side
                               "height": 15}]
 
 seed is used for the first level only (0 = random); later levels are
@@ -82,10 +81,10 @@ one cell per side, up to 41.
 SAVED FILES
 -----------
 
-The game only writes into the folder it was started from:
+The game writes relative paths into its current working directory.
+For a double-clicked package, that is this folder:
   data/highscores.json   the top 10 (path set in the config)
   logs/pacman.log        what happened, including any errors
 
-Nothing is written anywhere else. If that folder isn't writable (for
-example after a double-click on macOS), the game still runs, but
-highscores and logs are not saved.
+If that folder is not writable, the game still runs, but highscores
+and logs are not saved.

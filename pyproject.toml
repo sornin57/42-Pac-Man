@@ -26,3 +26,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pacman"]
+
+[tool.mypy]
+exclude = '(^|/)(\.venv[^/]*|\.cache|build|dist|logs|path)(/|$)'

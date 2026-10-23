@@ -40,3 +40,24 @@ def test_invalid_json_raises_clear_error(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Invalid highscore JSON file"):
         load_scores(str(path))
+
+
+@pytest.mark.parametrize("name", ["", "   ", "bad!", "ABCDEFGHIJK"])
+def test_invalid_saved_name_is_rejected(tmp_path: Path, name: str) -> None:
+    """Do not load names outside the subject's ten-character rule."""
+    path = tmp_path / "highscores.json"
+    path.write_text(
+        f'[{{"name": "{name}", "score": 10}}]', encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="Invalid highscore name"):
+        load_scores(str(path))
+
+
+def test_invalid_utf8_raises_clear_error(tmp_path: Path) -> None:
+    """A damaged score file must not leak a Unicode traceback."""
+    path = tmp_path / "highscores.json"
+    path.write_bytes(b"\xff")
+
+    with pytest.raises(ValueError, match="Invalid highscore JSON file"):
+        load_scores(str(path))

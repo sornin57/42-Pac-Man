@@ -17,6 +17,7 @@ they lead to.
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Protocol
@@ -299,21 +300,34 @@ class App:
 def main() -> None:
     """Load the config named on the command line and run the app.
 
-    Without an argument, the defaults from models.py are used.
+    A packaged game may start without an argument after a double-click.
 
     Anything unexpected ends up here instead of as a traceback: the
     full details go to the log, the player gets one short line.
     """
-    log_path = setup_logging()
-    if len(sys.argv) > 2:
-        logger.error(
-            "Only one argument expected, ignored: %s", " ".join(sys.argv[2:])
+    packaged_no_args = (
+        bool(getattr(sys, "frozen", False)) and len(sys.argv) == 1
+    )
+    if len(sys.argv) != 2 and not packaged_no_args:
+        print("Usage: python3 pac-man.py <config.json>", file=sys.stderr)
+        raise SystemExit(2)
+
+    if packaged_no_args:
+        executable = Path(sys.executable)
+        package_dir = (
+            executable.parents[3] if sys.platform == "darwin"
+            else executable.parent
         )
+        try:
+            os.chdir(package_dir)
+        except OSError:
+            pass
+
+    log_path = setup_logging()
     try:
-        if len(sys.argv) < 2:
-            # E.g. the packaged game opened with a double-click.
-            logger.info("No config given, using the defaults")
-            config = GameConfig()
+        if packaged_no_args:
+            logger.info("Starting packaged game with config/default.json")
+            config = load_config("config/default.json")
         else:
             logger.info("Starting with config %s", sys.argv[1])
             config = load_config(sys.argv[1])

@@ -97,11 +97,11 @@ def parse_levels(value: Any) -> list[LevelConfig]:
         levels.append(LevelConfig(
             width=clamp_int(
                 f"{name}.width", item.get("width", MISSING),
-                DEFAULT_LEVEL.width, 5, 99,
+                DEFAULT_LEVEL.width, 5, 41,
             ),
             height=clamp_int(
                 f"{name}.height", item.get("height", MISSING),
-                DEFAULT_LEVEL.height, 5, 99,
+                DEFAULT_LEVEL.height, 5, 41,
             ),
         ))
     if not levels:

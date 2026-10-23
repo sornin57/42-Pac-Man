@@ -19,7 +19,7 @@
   # Seconds per level (10..3600). Time up: a life is lost and the level restarts.
   "level_max_time": 300,
 
-  # Maze size per level, in cells (5..99 each side). After the last entry,
+  # Maze size per level, in cells (5..41 each side). After the last entry,
   # every new level grows by one cell per side, up to 41.
   "levels": [
     {
