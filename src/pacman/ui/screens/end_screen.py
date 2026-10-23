@@ -18,12 +18,11 @@ from pacman.ui.renderer import (
     TEXT_COLOR,
     Renderer,
 )
-from pacman.ui.screens.game_screen import WIN_AFTER_LEVELS
 from pacman.ui.screens.menu_keys import BACK_KEYS
 
 WIN_TITLE = "YOU WIN!"
 LOSE_TITLE = "GAME OVER"
-WIN_MESSAGE = f"YOU BEAT {WIN_AFTER_LEVELS} LEVELS!"
+WIN_MESSAGE = "ALL LEVELS CLEARED!"
 LOSE_MESSAGE = "NICE RUN! TRY AGAIN!"
 NAME_MESSAGE = "ENTER YOUR NAME"
 CURSOR_BLINK = 0.5  # seconds per on/off phase
@@ -56,7 +55,7 @@ class EndScreen:
         Args:
             score: The player's final score.
             level: The (1-based) level the game ended on.
-            won: Whether the win milestone (10 levels) was reached.
+            won: Whether the player completed every level.
             scores: The current highscores (not changed in place).
             renderer: Shared drawing toolbox.
         """

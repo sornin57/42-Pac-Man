@@ -1,8 +1,8 @@
 PAC-MAN: GHOSTS! MORE GHOSTS!
 =============================
 
-Eat every dot in the maze while four ghosts hunt you. Clear level 10
-and you're a winner, then play on for a higher score.
+Eat every dot in the maze while four ghosts hunt you. Clear all 10
+levels (or every configured level if there are more) to win the game.
 
 
 STARTING THE GAME

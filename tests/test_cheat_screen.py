@@ -8,11 +8,15 @@ from pacman.ui.screens.cheat_screen import CheatItem, CheatScreen
 
 
 class SilentRenderer:
+    """Stand in for a renderer without playing sounds."""
+
     def play_sound(self, name: str) -> None:
+        """Ignore sound playback during screen tests."""
         pass
 
 
 def make_screen(cheats: Cheats, in_game: bool) -> CheatScreen:
+    """Create a cheat screen with a silent test renderer."""
     return CheatScreen(
         cheats, cast(Renderer, SilentRenderer()), pygame.Surface((1, 1)),
         in_game,
@@ -20,12 +24,14 @@ def make_screen(cheats: Cheats, in_game: bool) -> CheatScreen:
 
 
 def choose(screen: CheatScreen, item: CheatItem) -> None:
+    """Select an item and send an Enter key event."""
     screen.selected_index = screen.items.index(item)
     enter = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
     screen.handle_event(enter)
 
 
 def test_timer_off_toggles_shared_cheats() -> None:
+    """Toggle the shared timer cheat from the screen."""
     cheats = Cheats()
     screen = make_screen(cheats, in_game=True)
 
@@ -40,6 +46,7 @@ def test_timer_off_toggles_shared_cheats() -> None:
 
 
 def test_add_life_counts_requests() -> None:
+    """Count repeated extra-life requests on the screen."""
     screen = make_screen(Cheats(), in_game=True)
 
     choose(screen, CheatItem.ADD_LIFE)
@@ -51,6 +58,7 @@ def test_add_life_counts_requests() -> None:
 
 
 def test_skip_level_is_requested_not_applied() -> None:
+    """Record a skip request without applying it immediately."""
     screen = make_screen(Cheats(), in_game=True)
 
     choose(screen, CheatItem.SKIP_LEVEL)
@@ -62,6 +70,7 @@ def test_skip_level_is_requested_not_applied() -> None:
 
 
 def test_main_menu_hides_in_game_only_cheats() -> None:
+    """Hide cheats that require an active game in the main menu."""
     screen = make_screen(Cheats(), in_game=False)
 
     assert CheatItem.SKIP_LEVEL not in screen.items

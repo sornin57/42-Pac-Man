@@ -14,6 +14,7 @@ MOVES: dict[str, Position] = {
 
 
 def create_maze() -> Maze:
+    """Create a small maze for the terminal movement demo."""
     cells = [
         [9, 1, 1, 1, 3],
         [8, 0, 0, 0, 2],
@@ -25,6 +26,7 @@ def create_maze() -> Maze:
 
 
 def display(maze: Maze, blinky: Position, player: Position) -> None:
+    """Print the maze with walls, Blinky, and Pac-Man."""
     for y in range(maze.height):
         top = ""
         middle = ""
@@ -70,6 +72,7 @@ def display(maze: Maze, blinky: Position, player: Position) -> None:
 
 
 def move_player(maze: Maze, position: Position, command: str) -> Position:
+    """Apply a movement command unless a wall blocks the destination."""
     dx, dy = MOVES[command]
     destination = (position[0] + dx, position[1] + dy)
     if destination in maze.get_neighbors(*position):
@@ -79,6 +82,7 @@ def move_player(maze: Maze, position: Position, command: str) -> Position:
 
 
 def main() -> None:
+    """Run the interactive terminal movement demo."""
     maze = create_maze()
     player_position = (4, 4)
     blinky = Blinky(position=(0, 0))

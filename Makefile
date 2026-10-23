@@ -32,11 +32,16 @@ check: lint test
 package-mac:
 	@test "$$(uname -s)" = Darwin || { echo "package-mac must run on macOS (PyInstaller can't cross-build)."; exit 1; }
 	uv run pyinstaller pacman.spec --noconfirm --distpath dist/mac --workpath build/mac
-	rm -rf dist/PacMan-mac && mkdir -p dist/PacMan-mac/config
-	ditto dist/mac/PacMan.app dist/PacMan-mac/PacMan.app
-	cp packaging/README.txt dist/PacMan-mac/
-	cp config/default.json dist/PacMan-mac/config/
-	ditto -c -k --keepParent dist/PacMan-mac dist/PacMan-mac.zip
+	@set -e; \
+	stage=$$(mktemp -d /tmp/pacman-package.XXXXXX); \
+	trap 'rm -rf "$$stage"' EXIT; \
+	mkdir -p "$$stage/PacMan-mac/config"; \
+	ditto --norsrc --noextattr --noqtn dist/mac/PacMan.app "$$stage/PacMan-mac/PacMan.app"; \
+	codesign --force --deep --sign - "$$stage/PacMan-mac/PacMan.app"; \
+	codesign --verify --deep --strict "$$stage/PacMan-mac/PacMan.app"; \
+	cp packaging/README.txt "$$stage/PacMan-mac/"; \
+	cp config/default.json "$$stage/PacMan-mac/config/"; \
+	ditto -c -k --keepParent "$$stage/PacMan-mac" dist/PacMan-mac.zip
 	@echo "Package ready: dist/PacMan-mac.zip"
 
 package-linux:

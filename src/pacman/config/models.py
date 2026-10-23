@@ -3,12 +3,16 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class LevelConfig:
+    """Store the dimensions used to generate a level."""
+
     width: int = 15
     height: int = 15
 
 
 @dataclass(frozen=True)
 class GameConfig:
+    """Store validated game settings and level definitions."""
+
     highscore_filename: str = "data/highscores.json"
     lives: int = 3
     points_per_pacgum: int = 10

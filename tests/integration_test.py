@@ -36,7 +36,10 @@ def test_generator_exception_is_wrapped(
     """A crash inside mazegenerator surfaces as MazeGenerationError."""
 
     class BrokenGenerator:
+        """Simulate a generator that fails during construction."""
+
         def __init__(self, *args: object, **kwargs: object) -> None:
+            """Raise an error instead of creating a maze."""
             raise RuntimeError("boom")
 
     monkeypatch.setattr(
@@ -53,7 +56,10 @@ def test_empty_maze_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     """An empty maze from the generator is rejected cleanly."""
 
     class EmptyGenerator:
+        """Simulate a generator that returns no cells."""
+
         def __init__(self, *args: object, **kwargs: object) -> None:
+            """Initialize an empty maze grid."""
             self.maze: list[list[int]] = []
 
     monkeypatch.setattr(
@@ -70,7 +76,10 @@ def test_wrong_size_maze_is_rejected(
     """A generator returning the wrong dimensions is rejected cleanly."""
 
     class InvalidGenerator:
+        """Simulate a generator that returns the wrong grid size."""
+
         def __init__(self, *args: object, **kwargs: object) -> None:
+            """Initialize a grid smaller than the requested size."""
             self.maze = [
                 [15, 15],
                 [15, 15],

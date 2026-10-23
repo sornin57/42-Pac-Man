@@ -50,6 +50,7 @@ def _text(*paragraphs: str) -> list[str]:
 
 def build_pages(config: GameConfig) -> list[Page]:
     """The instruction pages, with the numbers from `config`."""
+    total_levels = max(WIN_AFTER_LEVELS, len(config.levels))
     return [
         ("CONTROLS", _table([
             ("ARROWS/WASD", "MOVE"),
@@ -60,8 +61,7 @@ def build_pages(config: GameConfig) -> list[Page]:
         ])),
         ("HOW TO PLAY", _text(
             "EAT ALL THE DOTS TO CLEAR THE LEVEL.",
-            f"CLEAR LEVEL {WIN_AFTER_LEVELS} AND YOU'RE A WINNER! PLAY ON"
-            " AS LONG AS YOU LAST FOR A HIGHER SCORE.",
+            f"CLEAR ALL {total_levels} LEVELS TO WIN THE GAME.",
             f"YOU HAVE {config.lives} LIVES. SCORE AND LIVES CARRY OVER"
             " TO THE NEXT LEVEL.",
             f"EACH LEVEL HAS {config.level_max_time} SECONDS. TIME UP:"

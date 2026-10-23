@@ -70,10 +70,12 @@ class Level:
             (0, self.height - 1),
             (self.width - 1, self.height - 1),
         ]
-        ghost_classes = [Blinky, Pinky, Inky, Clyde]
+        blinky = Blinky(corners[0])
         return [
-            ghost_class(corner)
-            for ghost_class, corner in zip(ghost_classes, corners)
+            blinky,
+            Pinky(corners[1]),
+            Inky(corners[2], blinky),
+            Clyde(corners[3]),
         ]
 
     def generate_pacgums(self) -> set[tuple[int, int]]:

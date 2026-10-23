@@ -6,6 +6,8 @@ Position = tuple[int, int]
 
 
 class GhostMode(Enum):
+    """Represent the current movement and respawn state of a ghost."""
+
     CHASE = "chase"
     SCATTER = "scatter"
     FRIGHTENED = "frightened"
@@ -14,7 +16,10 @@ class GhostMode(Enum):
 
 
 class Ghost:
+    """Handle movement and shared state for every ghost."""
+
     def __init__(self, name: str, color: str, position: Position) -> None:
+        """Create a ghost at its home position."""
         self.name = name
         self.color = color
         self.position = position
@@ -28,6 +33,7 @@ class Ghost:
         player_position: Position,
         player_direction: Direction | None,
     ) -> Position:
+        """Chase Pac-Man's current cell by default."""
         return player_position
 
     def flee(self, maze: Maze, player_position: Position) -> Position:
@@ -100,12 +106,18 @@ class Ghost:
 
 
 class Blinky(Ghost):
+    """Chase Pac-Man directly using the shared ghost movement."""
+
     def __init__(self, position: Position) -> None:
+        """Create Blinky at the given position."""
         super().__init__("Blinky", "Red", position)
 
 
 class Pinky(Ghost):
+    """Aim ahead of Pac-Man, stopping at the first wall."""
+
     def __init__(self, position: Position) -> None:
+        """Create Pinky at the given position."""
         super().__init__("Pinky", "Pink", position)
 
     def get_target(
@@ -114,6 +126,7 @@ class Pinky(Ghost):
         player_position: Position,
         player_direction: Direction | None,
     ) -> Position:
+        """Return a reachable cell up to four steps ahead of Pac-Man."""
         if player_direction is None:
             return player_position
 
@@ -127,15 +140,12 @@ class Pinky(Ghost):
 
 
 class Inky(Ghost):
-    def __init__(self, position: Position) -> None:
+    """Approach Pac-Man from the side farthest from Blinky."""
+
+    def __init__(self, position: Position, blinky: Blinky) -> None:
+        """Keep a reference to Blinky for Inky's target selection."""
         super().__init__("Inky", "Cyan", position)
-
-
-class Clyde(Ghost):
-    RETREAT_DISTANCE = 4
-
-    def __init__(self, position: Position) -> None:
-        super().__init__("Clyde", "Orange", position)
+        self.blinky = blinky
 
     def get_target(
         self,
@@ -143,7 +153,49 @@ class Clyde(Ghost):
         player_position: Position,
         player_direction: Direction | None,
     ) -> Position:
+        """Choose the walkable neighbor of Pac-Man farthest from Blinky."""
+        target = player_position
+        greatest_distance = -1
+        blinky_x, blinky_y = self.blinky.position
+
+        for x, y in maze.get_neighbors(*player_position):
+            distance = abs(x - blinky_x) + abs(y - blinky_y)
+            if distance > greatest_distance:
+                greatest_distance = distance
+                target = (x, y)
+
+        return target
+
+
+class Clyde(Ghost):
+    """Chase from afar, then retreat all the way home when close."""
+
+    RETREAT_DISTANCE = 4
+
+    def __init__(self, position: Position) -> None:
+        """Create Clyde with no retreat in progress."""
+        super().__init__("Clyde", "Orange", position)
+        self.retreating = False
+
+    def get_target(
+        self,
+        maze: Maze,
+        player_position: Position,
+        player_direction: Direction | None,
+    ) -> Position:
+        """Keep retreating once close enough, until Clyde reaches home."""
+        if self.position == self.home:
+            self.retreating = False
+        if self.retreating:
+            return self.home
+
         distance = len(maze.shortest_path(self.position, player_position)) - 1
         if distance <= self.RETREAT_DISTANCE:
+            self.retreating = True
             return self.home
         return player_position
+
+    def reset(self) -> None:
+        """Return home and forget any retreat in progress."""
+        super().reset()
+        self.retreating = False

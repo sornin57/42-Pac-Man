@@ -242,17 +242,15 @@ class GameScreen:
                 ghost.mode = GhostMode.FRIGHTENED
 
     def _complete_level(self) -> None:
-        """Start the next level, paused until the first move.
-
-        Clearing level WIN_AFTER_LEVELS makes the player a winner; play
-        goes on after it.
-        """
-        # Reaching WIN_AFTER_LEVELS is a milestone, not a stop: like the
-        # real arcade game, there's no actual ending -- play keeps going
-        # (Level keeps generating/growing mazes) until the player dies.
-        if self.game.current_level + 1 >= WIN_AFTER_LEVELS:
+        """Finish the game or start the next level after clearing one."""
+        if self.finished:
+            return
+        total_levels = max(WIN_AFTER_LEVELS, len(self.config.levels))
+        if self.game.current_level + 1 >= total_levels:
             self.won = True
+            self.finished = True
             self.renderer.play_sound("victory")
+            return
         self._say("level_clear")
         self.game.next_level()
         self._clear_power_up()
@@ -269,6 +267,8 @@ class GameScreen:
         if self.finished or self.waiting:
             return
         self._update_player()
+        if self.finished:
+            return
         self._update_power_up()
         self._update_ghosts()
         self._update_timer()
@@ -285,6 +285,8 @@ class GameScreen:
         self._player_path = [start, player.position] if self._moving else []
         if self._moving:
             self._handle_tile_effects()
+            if self.finished:
+                return
             # Walking into a ghost counts too, not just being walked
             # into -- otherwise a ghost about to move away is missed.
             self._check_collisions()

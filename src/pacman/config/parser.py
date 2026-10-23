@@ -14,10 +14,34 @@ MISSING = object()  # tells "key absent" apart from any JSON value
 
 
 def remove_comments(text: str) -> str:
-    """Strip `#` comments from the config text."""
-    return "\n".join(
-        line.split("#", maxsplit=1)[0] for line in text.splitlines()
-    )
+    """Strip `#` comments outside JSON strings from the config text."""
+    result = []
+    in_string = False
+    escaped = False
+    in_comment = False
+
+    for char in text:
+        if in_comment:
+            if char == "\n":
+                result.append(char)
+                in_comment = False
+        elif in_string:
+            result.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            result.append(char)
+            in_string = True
+        elif char == "#":
+            in_comment = True
+        else:
+            result.append(char)
+
+    return "".join(result)
 
 
 def clamp_int(

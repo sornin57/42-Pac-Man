@@ -154,15 +154,14 @@ class App:
     def _from_game(self, game_screen: GameScreen) -> None:
         """Show the end screen after the game, the pause menu if asked."""
         if game_screen.finished:
-            # The victory jingle, if earned, already played when the
-            # win milestone was hit; running out of lives ends it all.
             logger.info(
                 "Game over: score %d, level %d%s",
                 self.game.player.score,
                 self.game.current_level + 1,
                 ", winner" if game_screen.won else "",
             )
-            self.renderer.play_sound("game_over")
+            if not game_screen.won:
+                self.renderer.play_sound("game_over")
             self.screens = [EndScreen(
                 self.game.player.score,
                 self.game.current_level + 1,  # current_level is 0-indexed
@@ -239,7 +238,7 @@ class App:
 
         Args:
             score: The finished game's score.
-            won: Whether the win milestone was reached.
+            won: Whether the player completed every level.
             new_entry: The just-saved entry, highlighted (None if none).
             fireworks: The victory show to carry on, if any.
         """

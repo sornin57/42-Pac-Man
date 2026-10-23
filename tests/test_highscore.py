@@ -5,6 +5,7 @@ from pacman.highscore import Highscore, add_score, load_scores, save_scores
 
 
 def test_save_and_load_scores(tmp_path: Path) -> None:
+    """Read back the same scores that were written to disk."""
     path = tmp_path / "highscores.json"
     scores = [Highscore("Mathieu", 1200), Highscore("Nadia", 850)]
 
@@ -14,6 +15,7 @@ def test_save_and_load_scores(tmp_path: Path) -> None:
 
 
 def test_add_score_sorts_and_keeps_top_ten() -> None:
+    """Keep only the ten highest scores without changing the input."""
     scores = [Highscore(str(number), number) for number in range(10)]
 
     result = add_score(scores, Highscore("Best", 20))
@@ -25,12 +27,14 @@ def test_add_score_sorts_and_keeps_top_ten() -> None:
 
 
 def test_missing_file_returns_empty_list(tmp_path: Path) -> None:
+    """Treat a missing score file as an empty scoreboard."""
     path = tmp_path / "missing.json"
 
     assert load_scores(str(path)) == []
 
 
 def test_invalid_json_raises_clear_error(tmp_path: Path) -> None:
+    """Report malformed score JSON with a clear error."""
     path = tmp_path / "highscores.json"
     path.write_text("not JSON", encoding="utf-8")
 
