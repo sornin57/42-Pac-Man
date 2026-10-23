@@ -43,8 +43,10 @@ cross-compiled. The archives include `packaging/README.txt` and an editable
 config. The macOS archive in `dist/PacMan-mac.zip` targets Apple Silicon;
 the Linux x86_64 archive is `dist/PacMan-linux.tar.gz`. Both extracted
 archives passed headless launch checks, but a full desktop playthrough
-remains necessary. A downloadable itch.io release is not complete until
-its files are attached and tested by a visitor.
+remains necessary. The free, unlisted release is available on
+[itch.io](https://lelinge.itch.io/pac-man-ghosts-more-ghosts), with both
+archives and installation instructions. An independent download and full
+playthrough still need to be checked.
 
 ## Configuration
 
