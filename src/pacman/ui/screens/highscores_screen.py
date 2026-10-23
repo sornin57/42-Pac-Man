@@ -5,10 +5,18 @@ if any) with the player's score and new entry shown. `App` reads
 `done` to go back to the main menu.
 """
 
+import time
+
 import pygame
 
 from pacman.highscore import Highscore
-from pacman.ui.renderer import MENU_SELECTED_COLOR, TEXT_COLOR, Renderer
+from pacman.ui.fireworks import PIXEL_SIZE, Fireworks
+from pacman.ui.renderer import (
+    FIREWORKS_ZONE,
+    MENU_SELECTED_COLOR,
+    TEXT_COLOR,
+    Renderer,
+)
 from pacman.ui.screens.end_screen import MAX_NAME_LENGTH
 from pacman.ui.screens.menu_keys import BACK_KEYS, CONFIRM_KEYS
 
@@ -28,6 +36,7 @@ class HighscoresScreen:
         message: str,
         score: int | None = None,
         new_entry: Highscore | None = None,
+        fireworks: Fireworks | None = None,
     ) -> None:
         """Args:
             scores: The table to show, best first.
@@ -38,6 +47,8 @@ class HighscoresScreen:
             score: The just-finished game's score, shown above the
                 table (None from the main menu).
             new_entry: The just-saved entry, highlighted in the table.
+            fireworks: A show already running (after a win) to carry
+                on behind the table; a new one starts if omitted.
         """
         self.scores = scores
         self.renderer = renderer
@@ -45,6 +56,10 @@ class HighscoresScreen:
         self.message = message
         self.score = score
         self.new_entry = new_entry
+        # Fireworks every time the table opens, celebrating the scores.
+        self.fireworks = (
+            fireworks if fireworks is not None else Fireworks(FIREWORKS_ZONE)
+        )
         self.done = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -55,17 +70,20 @@ class HighscoresScreen:
             self.done = True
 
     def update(self) -> None:
-        """Nothing to simulate; everything is event-driven."""
+        """Advance the fireworks."""
+        self.fireworks.update(time.monotonic())
 
     def draw(self) -> None:
         """Draw the HUD title, the table panel and the plate message."""
         self.renderer.clear()
+        self.renderer.draw_pixels(self.fireworks.pixels(), PIXEL_SIZE)
         self.renderer.draw_hud_title(self.hud_title)
         self.renderer.draw_panel(TITLE, self._rows(), TABLE_ROW_HEIGHT)
         self.renderer.draw_message(self.message)
         self.renderer.present()
 
     def _rows(self) -> list[tuple[str, tuple[int, int, int]]]:
+        """The table rows (text, color): the score, then the top 10."""
         rows: list[tuple[str, tuple[int, int, int]]] = []
         if self.score is not None:
             rows.append((f"YOUR SCORE {self.score}", TEXT_COLOR))

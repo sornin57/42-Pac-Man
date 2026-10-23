@@ -1,3 +1,5 @@
+"""Main menu model: its actions and the current selection."""
+
 from enum import Enum
 
 

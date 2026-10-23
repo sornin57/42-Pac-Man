@@ -7,7 +7,14 @@ from pacman.ghost import Blinky, Clyde, Ghost, Inky, Pinky
 
 
 class Level:
+    """One level: its maze, pacgums, super-pacgums and ghosts."""
     def __init__(self, level_number: int, config: GameConfig) -> None:
+        """Generate the maze for `level_number` and fill it.
+
+        Args:
+            level_number: 0-based level index.
+            config: Loaded game configuration (sizes, seed).
+        """
         self.maze = self._generate_maze(level_number, config)
 
         self.width = self.maze.width
@@ -28,6 +35,13 @@ class Level:
     def _generate_maze(
         level_number: int, config: GameConfig,
     ) -> Maze:
+        """Generate the maze for `level_number`.
+
+        Sizes come from `config.levels`; past the end of that list, the
+        last size grows by one cell per side per level, up to MAX_SIZE.
+        Only the first level uses the configured seed; later ones are
+        random (seed 0).
+        """
         last_index = len(config.levels) - 1
         level_config = config.levels[min(level_number, last_index)]
         overflow = max(0, level_number - last_index)

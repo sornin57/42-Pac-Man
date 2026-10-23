@@ -18,6 +18,7 @@ from pacman.game import Game
 from pacman.ghost import Ghost, GhostMode
 from pacman.maze import Direction
 from pacman.ui.renderer import Point, Renderer
+from pacman.ui.screens.menu_keys import is_cheat_next_level
 
 KEY_DIRECTIONS: dict[int, Direction] = {
     pygame.K_UP: Direction.NORTH,
@@ -102,6 +103,8 @@ class GameScreen:
         self.cheats = cheats if cheats is not None else Cheats()
         self.pause_requested = False
         self._suspended_at = 0.0
+        # To spot the timer cheat being switched back on (see resume).
+        self._timer_was_off = self.cheats.timer_off
         self._message = ""
         self._message_until = 0.0
         self.facing = Direction.EAST
@@ -132,8 +135,12 @@ class GameScreen:
             self._handle_keydown(event.key)
 
     def _handle_keydown(self, key: int) -> None:
+        """Request the pause menu, skip the level (N+L), or buffer a turn."""
         if key in PAUSE_KEYS:
             self.pause_requested = True
+            return
+        if is_cheat_next_level(pygame.event.Event(pygame.KEYDOWN, key=key)):
+            self.skip_level()
             return
         # Only buffers the requested direction -- actual movement is
         # timer-driven (see _update_player), independent of key timing
@@ -173,6 +180,11 @@ class GameScreen:
         # from where they were instead of snapping back.
         self._last_ghost_move += suspended_for
         self._last_player_move += suspended_for
+        # Timer cheat switched back on: the level gets its full time
+        # again, rather than counting the time it was off.
+        if self._timer_was_off and not self.cheats.timer_off:
+            self._reset_clock()
+        self._timer_was_off = self.cheats.timer_off
 
     def _shift_clocks(self, delta: float) -> None:
         """Push every running deadline `delta` seconds later."""
@@ -200,10 +212,14 @@ class GameScreen:
         self._level_start = self._paused_at = time.monotonic()
 
     def _clear_power_up(self) -> None:
+        """End the power-up and its timer."""
         self._frightened_until = 0.0
         self.game.player.power_down()
 
     def _handle_tile_effects(self) -> None:
+        """Eat whatever is on Pac-Man's cell; complete the level once
+        it's cleared.
+        """
         position = self.game.player.position
         level = self.game.level
         if level.remove_pacgum(position):
@@ -218,6 +234,7 @@ class GameScreen:
             self._complete_level()
 
     def _frighten_ghosts(self) -> None:
+        """Make the active ghosts edible for FRIGHTENED_DURATION."""
         # Eyes and ghosts waiting at home aren't affected.
         self._frightened_until = time.monotonic() + FRIGHTENED_DURATION
         for ghost in self.game.level.ghosts:
@@ -225,6 +242,11 @@ class GameScreen:
                 ghost.mode = GhostMode.FRIGHTENED
 
     def _complete_level(self) -> None:
+        """Start the next level, paused until the first move.
+
+        Clearing level WIN_AFTER_LEVELS makes the player a winner; play
+        goes on after it.
+        """
         # Reaching WIN_AFTER_LEVELS is a milestone, not a stop: like the
         # real arcade game, there's no actual ending -- play keeps going
         # (Level keeps generating/growing mazes) until the player dies.
@@ -252,6 +274,7 @@ class GameScreen:
         self._update_timer()
 
     def _update_player(self) -> None:
+        """Move Pac-Man one cell once his move interval has passed."""
         now = time.monotonic()
         if now - self._last_player_move < PLAYER_MOVE_INTERVAL:
             return
@@ -269,6 +292,9 @@ class GameScreen:
             self.facing = player.direction
 
     def _update_power_up(self) -> None:
+        """End the power-up when its time is over; ghosts go back to
+        scatter.
+        """
         if not self.game.player.powered_up:
             return
         if time.monotonic() < self._frightened_until:
@@ -279,6 +305,11 @@ class GameScreen:
                 ghost.mode = GhostMode.SCATTER
 
     def _update_ghosts(self) -> None:
+        """Move every ghost once the ghost interval has passed.
+
+        Eyes move several cells per step; frozen ghosts (cheat) stay put
+        but still collide.
+        """
         now = time.monotonic()
         if now - self._last_ghost_move < GHOST_MOVE_INTERVAL:
             return
@@ -310,6 +341,7 @@ class GameScreen:
             ghost.release()
 
     def _check_collisions(self) -> None:
+        """Resolve Pac-Man sharing a cell with any ghost."""
         for ghost in self.game.level.ghosts:
             if ghost.position != self.game.player.position:
                 continue
@@ -337,7 +369,10 @@ class GameScreen:
         return True
 
     def _update_timer(self) -> None:
-        if self.time_remaining() > 0:
+        """When the level's time is up, restart it at the cost of a life
+        (no life lost while invincible, or nothing while the timer is off).
+        """
+        if self.cheats.timer_off or self.time_remaining() > 0:
             return
         self._say("time_up")
         if self.cheats.invincible:
@@ -368,6 +403,10 @@ class GameScreen:
             self.game.level.reset_ghosts()
         if game_over:
             self.finished = True
+
+    def add_life(self) -> None:
+        """Cheat: give the player an extra life."""
+        self.game.player.lives += 1
 
     def _restart_level(self) -> None:
         """Start the level over: every dot back, ghosts home, full
@@ -457,7 +496,7 @@ class GameScreen:
             self.game.player.score,
             self.game.player.lives,
             self.game.current_level + 1,  # current_level is 0-indexed
-            self.time_remaining(),
+            None if self.cheats.timer_off else self.time_remaining(),
         )
         if time.monotonic() < self._message_until:
             self.renderer.draw_message(self._message)
