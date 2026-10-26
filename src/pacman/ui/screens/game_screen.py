@@ -6,6 +6,7 @@ replace this screen with another one, based on `finished`/`won`, and
 when to pause it, based on `pause_requested`.
 """
 
+import logging
 import math
 import random
 import time
@@ -17,8 +18,11 @@ from pacman.config.models import GameConfig
 from pacman.game import Game
 from pacman.ghost import Ghost, GhostMode
 from pacman.maze import Direction
+from pacman.maze_integration import MazeGenerationError
 from pacman.ui.renderer import Point, Renderer
 from pacman.ui.screens.menu_keys import is_cheat_next_level
+
+logger = logging.getLogger(__name__)
 
 KEY_DIRECTIONS: dict[int, Direction] = {
     pygame.K_UP: Direction.NORTH,
@@ -251,8 +255,14 @@ class GameScreen:
             self.finished = True
             self.renderer.play_sound("victory")
             return
+        try:
+            self.game.next_level()
+        except MazeGenerationError as error:
+            # No next maze: end the game here, score kept, no crash.
+            logger.error("Next level not generated, game over: %s", error)
+            self.finished = True
+            return
         self._say("level_clear")
-        self.game.next_level()
         self._clear_power_up()
         self._ghost_release_at.clear()
         self._forget_paths()

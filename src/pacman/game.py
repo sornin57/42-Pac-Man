@@ -26,9 +26,16 @@ class Game:
         self.cheat_mode = not self.cheat_mode
 
     def next_level(self) -> None:
-        """Generate the next level and move the player to its center."""
+        """Generate the next level and move the player to its center.
+
+        Raises:
+            MazeGenerationError: If the maze can't be generated; the
+                game is then left on the level it was on.
+        """
+        # Build first, so a failure changes nothing.
+        level = Level(self.current_level + 1, self.config)
         self.current_level += 1
-        self.level = Level(self.current_level, self.config)
+        self.level = level
 
         self.player.position = self.level.center
         self.player.spawn_position = self.level.center

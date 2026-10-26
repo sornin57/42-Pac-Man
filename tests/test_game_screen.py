@@ -71,7 +71,6 @@ def test_clearing_last_level_opens_victory_name_entry(tmp_path: Path) -> None:
 
     app = App.__new__(App)
     app.config = config
-    app.game = game
     app.renderer = cast(Renderer, renderer)
     app.highscores = []
     app._from_game(screen)
@@ -108,7 +107,6 @@ def test_losing_still_plays_game_over_sound() -> None:
     screen.finished = True
 
     app = App.__new__(App)
-    app.game = game
     app.renderer = cast(Renderer, renderer)
     app.highscores = []
     app._from_game(screen)

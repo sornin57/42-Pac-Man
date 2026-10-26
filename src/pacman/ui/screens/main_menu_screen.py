@@ -19,16 +19,21 @@ from pacman.ui.screens.menu_keys import (
 
 TITLE = "PAC-MAN"  # shown in the HUD strip
 MESSAGE = "READY! STEADY!"  # in the bottom plate; the game adds "GO?!"
+# Shown instead when Play couldn't generate a maze; trying again uses
+# a random seed, so it may well work.
+MAZE_ERROR_MESSAGE = "NO MAZE THIS TIME! TRY AGAIN"
 
 
 class MainMenuScreen:
     """Show the main menu and report the chosen action."""
 
-    def __init__(self, renderer: Renderer) -> None:
+    def __init__(self, renderer: Renderer, message: str = MESSAGE) -> None:
         """Args:
             renderer: Shared drawing toolbox.
+            message: Text for the bottom plate.
         """
         self.renderer = renderer
+        self.message = message
         self.menu = Menu()
         self.chosen: MenuAction | None = None
         self.open_cheats = False
@@ -58,5 +63,5 @@ class MainMenuScreen:
         self.renderer.draw_hud_title(TITLE)
         labels = [action.value.upper() for action in Menu.ACTIONS]
         self.renderer.draw_menu(None, labels, self.menu.selected_index)
-        self.renderer.draw_message(MESSAGE)
+        self.renderer.draw_message(self.message)
         self.renderer.present()

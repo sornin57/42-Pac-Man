@@ -30,6 +30,7 @@ from pacman.config.parser import load_config
 from pacman.game import Game
 from pacman.highscore import Highscore, load_scores, save_scores
 from pacman.log_setup import setup_logging
+from pacman.maze_integration import MazeGenerationError
 from pacman.ui.fireworks import Fireworks
 from pacman.ui.menu import MenuAction
 from pacman.ui.renderer import Renderer
@@ -72,7 +73,7 @@ class App:
         # Loaded once at game start, saved at game end (subject V.5).
         self.highscores = self._load_highscores()
         self.cheats = Cheats()
-        self.game = Game(config)
+        # No Game yet: its maze is generated when Play is chosen.
         self.screens: list[Screen] = [MainMenuScreen(self.renderer)]
         self.clock = pygame.time.Clock()
         self.running = False
@@ -135,10 +136,17 @@ class App:
             self._open_cheats(in_game=False)
         action, menu.chosen = menu.chosen, None
         if action is MenuAction.PLAY:
+            try:
+                game = Game(self.config)
+            except MazeGenerationError as error:
+                logger.error("New game not started: %s", error)
+                self.screens = [MainMenuScreen(
+                    self.renderer, main_menu_screen.MAZE_ERROR_MESSAGE
+                )]
+                return
             logger.info("New game started")
-            self.game = Game(self.config)
             self.screens = [
-                GameScreen(self.game, self.renderer, self.config, self.cheats)
+                GameScreen(game, self.renderer, self.config, self.cheats)
             ]
         elif action is MenuAction.HIGHSCORES:
             self.screens = [HighscoresScreen(
@@ -155,17 +163,18 @@ class App:
     def _from_game(self, game_screen: GameScreen) -> None:
         """Show the end screen after the game, the pause menu if asked."""
         if game_screen.finished:
+            game = game_screen.game
             logger.info(
                 "Game over: score %d, level %d%s",
-                self.game.player.score,
-                self.game.current_level + 1,
+                game.player.score,
+                game.current_level + 1,
                 ", winner" if game_screen.won else "",
             )
             if not game_screen.won:
                 self.renderer.play_sound("game_over")
             self.screens = [EndScreen(
-                self.game.player.score,
-                self.game.current_level + 1,  # current_level is 0-indexed
+                game.player.score,
+                game.current_level + 1,  # current_level is 0-indexed
                 game_screen.won,
                 self.highscores,
                 self.renderer,
