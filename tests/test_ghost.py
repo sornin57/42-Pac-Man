@@ -140,17 +140,17 @@ def test_eaten_ghost_eyes_go_home_then_wait() -> None:
     blinky = Blinky(position=(1, 1))
     blinky.position = (3, 1)
     blinky.get_eaten()
+    states = []
+    for _ in range(3):
+        blinky.move(_open_maze(), player_position=(3, 3))
+        states.append((blinky.position, blinky.mode))
 
-    blinky.move(_open_maze(), player_position=(3, 3))
-    assert blinky.mode is GhostMode.EATEN
+    assert states == [
+        ((2, 1), GhostMode.EATEN),
+        ((1, 1), GhostMode.WAITING),
+        ((1, 1), GhostMode.WAITING),
+    ]
     assert blinky.direction is Direction.WEST
-
-    blinky.move(_open_maze(), player_position=(3, 3))
-    assert blinky.position == (1, 1)
-    assert blinky.mode is GhostMode.WAITING
-
-    blinky.move(_open_maze(), player_position=(3, 3))
-    assert blinky.position == (1, 1)
 
 
 def test_released_ghost_chases_again() -> None:
