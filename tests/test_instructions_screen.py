@@ -46,12 +46,11 @@ def test_numbers_come_from_the_config() -> None:
     assert "999" in text
 
 
-def test_victory_instructions_end_after_last_level() -> None:
-    """Tell players the game ends after all required levels."""
+def test_victory_instructions_offer_to_play_on() -> None:
+    """Tell players they win after all required levels, then may go on."""
     text = " ".join(" ".join(rows) for _, rows in build_pages(GameConfig()))
 
-    assert "CLEAR ALL 10 LEVELS TO WIN THE GAME." in text
-    assert "PLAY ON" not in text
+    assert "CLEAR ALL 10 LEVELS TO WIN THE GAME, THEN PLAY ON" in text
 
 
 def test_enter_turns_pages_then_closes_on_the_last() -> None:

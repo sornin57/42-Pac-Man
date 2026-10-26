@@ -8,7 +8,8 @@ This 42 curriculum project is a playable Pac-Man game written in Python and
 Pygame. Clear at least ten procedurally generated mazes while four ghosts
 chase you. Collect dots and power pellets, preserve your score and lives
 between levels, and enter your name for the persistent top-ten table when
-you win or lose. The assigned A-Maze-ing package generates the mazes through
+you win or lose. After the win you may stop or keep playing for a higher
+score. The assigned A-Maze-ing package generates the mazes through
 an adapter; its source is not modified.
 
 ## Instructions
@@ -35,7 +36,10 @@ Controls: arrow keys or WASD move, `P` or `Esc` pauses, arrow keys select
 menu items, and `Enter` confirms. From the main or pause menu, hold `C` and
 press `H` for the evaluation cheat menu (invincibility, ghost freeze, timer,
 level skip, and extra lives). The in-game Instructions screen explains the
-rules. The game ends after all configured levels, with a minimum of ten.
+rules. The game is won after all configured levels, with a minimum of ten.
+The player then enters a name and chooses whether to keep playing: **No**
+ends the game there; **Yes** continues with new, growing levels
+until the lives run out. The win is offered only once per game.
 
 For a standalone macOS build, run `make package-mac` on a Mac. For Linux,
 run `make package-linux` on Linux. PyInstaller builds are native, not
@@ -75,7 +79,10 @@ current level.
 Scores are stored as a JSON list in `highscore_filename`, sorted highest
 first and limited to ten entries. Names have at most ten alphanumeric or
 space characters; scores are non-negative integers. The game loads the file
-at startup and saves qualifying scores after the name-entry screen. Missing
+at startup and saves qualifying scores after the name-entry screen. A
+player who keeps playing after the win is asked for a name only once: the
+name is kept with the player and the score is saved under it when the game
+ends, so one game never adds two rows. Missing
 or damaged files produce an empty table and a log message rather than
 stopping play. JSON keeps the data easy to inspect during peer review.
 
@@ -86,9 +93,13 @@ The Pygame loop handles events, updates the active screen, and draws at
 interpolates between cells for smooth sprites. Pacgums increase the score,
 power pellets make ghosts edible briefly, and eaten ghosts return home.
 Blinky chases Pac-Man, Pinky aims ahead, Inky picks an approach away from
-Blinky, and Clyde retreats home when near Pac-Man. The game ends after the
-last required level or when no lives remain. A win or loss leads through
-name entry and highscores back to the main menu.
+Blinky, and Clyde retreats home when near Pac-Man. Clearing the last
+required level reaches a one-time win milestone: the game pauses under the
+name-entry screen, then asks whether to keep playing. Stopping saves the
+score and shows the win; continuing generates the next level and play goes
+on until no lives remain, which always ends as a game over. Each ending
+(`Outcome` in `end_screen.py`) has its own headline and message, and
+every path leads through highscores back to the main menu.
 
 ## General Software Architecture
 
@@ -143,7 +154,8 @@ move up, `S` down, `Q`/`A` left, `D` right, and `X` to quit.
 
 The test suite covers maze validation and integration, config and score
 file errors, ghost personalities, controls and cheat menus, instructions,
-and the win/loss-to-highscore flow.
+and the win/loss-to-highscore flow, including stopping or playing on after
+the win milestone.
 
 Tests can be run separately with:
 

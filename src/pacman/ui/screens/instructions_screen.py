@@ -13,7 +13,7 @@ from pacman.config.models import GameConfig
 from pacman.ui.renderer import TEXT_COLOR, Color, Renderer
 from pacman.ui.screens.game_screen import (
     FRIGHTENED_DURATION,
-    WIN_AFTER_LEVELS,
+    levels_to_win,
 )
 from pacman.ui.screens.main_menu_screen import TITLE as HUD_TITLE
 from pacman.ui.screens.menu_keys import BACK_KEYS, CONFIRM_KEYS, wrap
@@ -50,7 +50,7 @@ def _text(*paragraphs: str) -> list[str]:
 
 def build_pages(config: GameConfig) -> list[Page]:
     """The instruction pages, with the numbers from `config`."""
-    total_levels = max(WIN_AFTER_LEVELS, len(config.levels))
+    total_levels = levels_to_win(config)
     return [
         ("CONTROLS", _table([
             ("ARROWS/WASD", "MOVE"),
@@ -61,7 +61,8 @@ def build_pages(config: GameConfig) -> list[Page]:
         ])),
         ("HOW TO PLAY", _text(
             "EAT ALL THE DOTS TO CLEAR THE LEVEL.",
-            f"CLEAR ALL {total_levels} LEVELS TO WIN THE GAME.",
+            f"CLEAR ALL {total_levels} LEVELS TO WIN THE GAME, THEN PLAY"
+            " ON IF YOU LIKE, UNTIL YOUR LIVES RUN OUT.",
             f"YOU HAVE {config.lives} LIVES. SCORE AND LIVES CARRY OVER"
             " TO THE NEXT LEVEL.",
             f"EACH LEVEL HAS {config.level_max_time} SECONDS. TIME UP:"

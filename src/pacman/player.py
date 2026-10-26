@@ -8,12 +8,13 @@ class Player:
     """Pac-Man: position, movement, score, lives and power-up state."""
     def __init__(
         self, config: GameConfig, position: tuple[int, int],
-        name: str = "The best of the best",
+        name: str = "",
     ) -> None:
         """Args:
             config: Loaded game configuration (lives, points).
             position: Spawn cell, the maze center.
-            name: Player name.
+            name: Player name for the highscores; empty until entered
+                (at the win milestone, if the player keeps playing).
         """
         self.name: str = name
         self.position: tuple[int, int] = position
