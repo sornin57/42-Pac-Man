@@ -20,7 +20,7 @@ class Player:
         self.spawn_position: tuple[int, int] = position
         self.score: int = 0
         self.lives: int = config.lives
-        self.powered_up: bool = False  # TODO: maybe should be a timer
+        self.powered_up: bool = False
         self.config: GameConfig = config
         self.direction: Direction | None = None
         self.next_direction: Direction | None = None
@@ -95,11 +95,6 @@ class Player:
         self.position = self.spawn_position
         self.direction = None
         self.next_direction = None
-
-    def gain_life(self) -> None:
-        """Add one life."""
-        self.lives += 1
-        # TODO: maybe add a beating heart animation or sound effect
 
     def power_up(self) -> None:
         """Mark Pac-Man as powered up: ghosts can be eaten."""
