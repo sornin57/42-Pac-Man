@@ -10,18 +10,17 @@ def test_menu_starts_on_play() -> None:
 def test_move_down_visits_each_action_and_wraps() -> None:
     """Cycle downward through every menu action and wrap to Play."""
     menu = Menu()
+    visited = []
+    for _ in range(4):
+        menu.move_down()
+        visited.append(menu.selected_action)
 
-    menu.move_down()
-    assert menu.selected_action == MenuAction.HIGHSCORES
-
-    menu.move_down()
-    assert menu.selected_action == MenuAction.INSTRUCTIONS
-
-    menu.move_down()
-    assert menu.selected_action == MenuAction.QUIT
-
-    menu.move_down()
-    assert menu.selected_action == MenuAction.PLAY
+    assert visited == [
+        MenuAction.HIGHSCORES,
+        MenuAction.INSTRUCTIONS,
+        MenuAction.QUIT,
+        MenuAction.PLAY,
+    ]
 
 
 def test_move_up_wraps_to_quit() -> None:

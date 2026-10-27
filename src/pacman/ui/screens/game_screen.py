@@ -2,10 +2,12 @@
 
 Owns nothing long-lived -- it reads and drives the `Game` it's given
 and tells the shared `Renderer` what to draw. `App` decides when to
-replace this screen with another one, based on `finished`/`won`, and
-when to pause it, based on `pause_requested`.
+replace this screen with another one, based on `finished`/`won`, when
+to ask about playing on, based on `milestone`, and when to pause it,
+based on `pause_requested`.
 """
 
+import logging
 import math
 import random
 import time
@@ -17,8 +19,11 @@ from pacman.config.models import GameConfig
 from pacman.game import Game
 from pacman.ghost import Ghost, GhostMode
 from pacman.maze import Direction
+from pacman.maze_integration import MazeGenerationError
 from pacman.ui.renderer import Point, Renderer
 from pacman.ui.screens.menu_keys import is_cheat_next_level
+
+logger = logging.getLogger(__name__)
 
 KEY_DIRECTIONS: dict[int, Direction] = {
     pygame.K_UP: Direction.NORTH,
@@ -61,6 +66,12 @@ PAUSE_KEYS = (pygame.K_ESCAPE, pygame.K_p)
 
 
 Cell = tuple[int, int]
+
+
+def levels_to_win(config: GameConfig) -> int:
+    """How many levels to clear for the win milestone: WIN_AFTER_LEVELS,
+    or every configured level if there are more."""
+    return max(WIN_AFTER_LEVELS, len(config.levels))
 
 
 def _along(path: list[Cell], progress: float) -> Point:
@@ -111,7 +122,11 @@ class GameScreen:
         self.mouth_open = IDLE_FRAME  # Pac-Man's current animation frame
         self._moving = False
         self.finished = False
+        # `won` stays True once the milestone is reached, even if the
+        # player keeps playing; `milestone` is raised just that once,
+        # for `App` to offer the choice (see continue_playing).
         self.won = False
+        self.milestone = False
         self.waiting = True  # paused until the player's first move
         self._frightened_until = 0.0
         self._ghost_release_at: dict[Ghost, float] = {}
@@ -242,17 +257,43 @@ class GameScreen:
                 ghost.mode = GhostMode.FRIGHTENED
 
     def _complete_level(self) -> None:
-        """Finish the game or start the next level after clearing one."""
-        if self.finished:
+        """Reach the win milestone or start the next level after
+        clearing one.
+
+        The milestone comes once, after `levels_to_win` levels;
+        play stops there until `App` calls
+        continue_playing. After it, levels go on until the lives run out.
+        """
+        if self.stopped:
             return
-        total_levels = max(WIN_AFTER_LEVELS, len(self.config.levels))
-        if self.game.current_level + 1 >= total_levels:
+        last_level = levels_to_win(self.config) - 1
+        if not self.won and self.game.current_level >= last_level:
             self.won = True
-            self.finished = True
+            self.milestone = True
             self.renderer.play_sound("victory")
             return
+        self._next_level()
+
+    @property
+    def stopped(self) -> bool:
+        """No play for now: game over, or waiting at the milestone."""
+        return self.finished or self.milestone
+
+    def continue_playing(self) -> None:
+        """Go on past the milestone, with the next level."""
+        self.milestone = False
+        self._next_level()
+
+    def _next_level(self) -> None:
+        """Generate the next level and wait for the first move on it."""
+        try:
+            self.game.next_level()
+        except MazeGenerationError as error:
+            # No next maze: end the game here, score kept, no crash.
+            logger.error("Next level not generated, game over: %s", error)
+            self.finished = True
+            return
         self._say("level_clear")
-        self.game.next_level()
         self._clear_power_up()
         self._ghost_release_at.clear()
         self._forget_paths()
@@ -264,10 +305,10 @@ class GameScreen:
 
     def update(self) -> None:
         """Advance the player, ghosts, the power-up timer, and the clock."""
-        if self.finished or self.waiting:
+        if self.stopped or self.waiting:
             return
         self._update_player()
-        if self.finished:
+        if self.stopped:
             return
         self._update_power_up()
         self._update_ghosts()
@@ -285,7 +326,7 @@ class GameScreen:
         self._player_path = [start, player.position] if self._moving else []
         if self._moving:
             self._handle_tile_effects()
-            if self.finished:
+            if self.stopped:
                 return
             # Walking into a ghost counts too, not just being walked
             # into -- otherwise a ghost about to move away is missed.

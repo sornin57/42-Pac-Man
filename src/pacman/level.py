@@ -1,9 +1,13 @@
 """The current level: maze, collectibles, and ghosts."""
 
+import logging
+
 from pacman.maze import Maze
-from pacman.maze_integration import MazeAdapter
+from pacman.maze_integration import MazeAdapter, MazeGenerationError
 from pacman.config.models import GameConfig
 from pacman.ghost import Blinky, Clyde, Ghost, Inky, Pinky
+
+logger = logging.getLogger(__name__)
 
 
 class Level:
@@ -31,6 +35,9 @@ class Level:
     # screens without needing to know the actual screen size here.
     MAX_SIZE = 41
 
+    # Generation tries before giving up; retries use a random seed.
+    MAX_ATTEMPTS = 3
+
     @staticmethod
     def _generate_maze(
         level_number: int, config: GameConfig,
@@ -41,6 +48,12 @@ class Level:
         last size grows by one cell per side per level, up to MAX_SIZE.
         Only the first level uses the configured seed; later ones are
         random (seed 0).
+
+        A failed generation is retried with a random seed, up to
+        MAX_ATTEMPTS tries in all.
+
+        Raises:
+            MazeGenerationError: If every try failed.
         """
         last_index = len(config.levels) - 1
         level_config = config.levels[min(level_number, last_index)]
@@ -51,6 +64,15 @@ class Level:
 
         seed = config.seed if level_number == 0 else 0
 
+        for attempt in range(1, Level.MAX_ATTEMPTS):
+            try:
+                return MazeAdapter(width, height, seed).generate()
+            except MazeGenerationError as error:
+                logger.error(
+                    "Maze %dx%d (seed %d) failed, try %d of %d: %s",
+                    width, height, seed, attempt, Level.MAX_ATTEMPTS, error,
+                )
+                seed = 0
         return MazeAdapter(width, height, seed).generate()
 
     def _corners(self) -> set[tuple[int, int]]:

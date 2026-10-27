@@ -29,3 +29,7 @@ packages = ["src/pacman"]
 
 [tool.mypy]
 exclude = '(^|/)(\.venv[^/]*|\.cache|build|dist|logs|path)(/|$)'
+
+[[tool.mypy.overrides]]
+module = ["mazegenerator", "mazegenerator.*"]
+ignore_missing_imports = true

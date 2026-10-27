@@ -11,7 +11,10 @@ they lead to.
       | ^ \\--C+H--> cheats             |
       | |                                 \\--Main menu--> main menu
       | \\--- highscores <-- name entry <--out of lives-- game
-      |          ^          (saved only if it makes the top 10)
+      |          ^   ^      (saved only if it makes the top 10)
+      |          |    \\-NO-- name entry, continue? <--milestone-- game
+      |          |             (over the game) --YES--> game goes on
+      |           \\---- name already entered: saved directly
       |\\--Highscores
       \\--Instructions --Esc--> main menu
 """
@@ -28,14 +31,15 @@ from pacman.cheats import Cheats
 from pacman.config.models import GameConfig
 from pacman.config.parser import load_config
 from pacman.game import Game
-from pacman.highscore import Highscore, load_scores, save_scores
+from pacman.highscore import Highscore, add_score, load_scores, save_scores
 from pacman.log_setup import setup_logging
+from pacman.maze_integration import MazeGenerationError
 from pacman.ui.fireworks import Fireworks
 from pacman.ui.menu import MenuAction
 from pacman.ui.renderer import Renderer
 from pacman.ui.screens.cheat_screen import CheatScreen
-from pacman.ui.screens import end_screen, main_menu_screen
-from pacman.ui.screens.end_screen import EndScreen
+from pacman.ui.screens import main_menu_screen
+from pacman.ui.screens.end_screen import EndScreen, Outcome, makes_top
 from pacman.ui.screens.game_screen import GameScreen
 from pacman.ui.screens.highscores_screen import HighscoresScreen
 from pacman.ui.screens.instructions_screen import InstructionsScreen
@@ -72,7 +76,7 @@ class App:
         # Loaded once at game start, saved at game end (subject V.5).
         self.highscores = self._load_highscores()
         self.cheats = Cheats()
-        self.game = Game(config)
+        # No Game yet: its maze is generated when Play is chosen.
         self.screens: list[Screen] = [MainMenuScreen(self.renderer)]
         self.clock = pygame.time.Clock()
         self.running = False
@@ -116,13 +120,7 @@ class App:
         elif isinstance(screen, CheatScreen):
             self._from_cheats(screen)
         elif isinstance(screen, EndScreen) and screen.done:
-            if screen.saved_entry is not None:
-                self.highscores = screen.scores
-                self._save_highscores(screen.saved_entry)
-            self._show_final_highscores(
-                screen.score, screen.won, screen.saved_entry,
-                screen.fireworks,
-            )
+            self._from_end_screen(screen)
         elif isinstance(screen, HighscoresScreen) and screen.done:
             self._to_main_menu()
         elif isinstance(screen, InstructionsScreen) and screen.done:
@@ -135,10 +133,17 @@ class App:
             self._open_cheats(in_game=False)
         action, menu.chosen = menu.chosen, None
         if action is MenuAction.PLAY:
+            try:
+                game = Game(self.config)
+            except MazeGenerationError as error:
+                logger.error("New game not started: %s", error)
+                self.screens = [MainMenuScreen(
+                    self.renderer, main_menu_screen.MAZE_ERROR_MESSAGE
+                )]
+                return
             logger.info("New game started")
-            self.game = Game(self.config)
             self.screens = [
-                GameScreen(self.game, self.renderer, self.config, self.cheats)
+                GameScreen(game, self.renderer, self.config, self.cheats)
             ]
         elif action is MenuAction.HIGHSCORES:
             self.screens = [HighscoresScreen(
@@ -153,20 +158,46 @@ class App:
             self.running = False
 
     def _from_game(self, game_screen: GameScreen) -> None:
-        """Show the end screen after the game, the pause menu if asked."""
-        if game_screen.finished:
+        """Show the end screen after the game or at the milestone, the
+        pause menu if asked."""
+        game = game_screen.game
+        if game_screen.milestone:
+            logger.info(
+                "Milestone reached: score %d, level %d",
+                game.player.score, game.current_level + 1,
+            )
+            # Over the game, which goes on if the player says so.
+            self.screens.append(EndScreen(
+                game.player.score,
+                game.current_level + 1,  # current_level is 0-indexed
+                Outcome.MILESTONE,
+                self.highscores,
+                self.renderer,
+            ))
+        elif game_screen.finished:
             logger.info(
                 "Game over: score %d, level %d%s",
-                self.game.player.score,
-                self.game.current_level + 1,
+                game.player.score,
+                game.current_level + 1,
                 ", winner" if game_screen.won else "",
             )
-            if not game_screen.won:
-                self.renderer.play_sound("game_over")
+            # Always a game over, even after the milestone: a win
+            # that stops there goes through the milestone screen.
+            self.renderer.play_sound("game_over")
+            outcome = Outcome.PLAYED_ON if game_screen.won else Outcome.LOST
+            if game.player.name:
+                # Named at the milestone: no second name entry.
+                entry = self._record_score(
+                    game.player.name, game.player.score
+                )
+                self._show_final_highscores(
+                    game.player.score, outcome, entry
+                )
+                return
             self.screens = [EndScreen(
-                self.game.player.score,
-                self.game.current_level + 1,  # current_level is 0-indexed
-                game_screen.won,
+                game.player.score,
+                game.current_level + 1,  # current_level is 0-indexed
+                outcome,
                 self.highscores,
                 self.renderer,
             )]
@@ -209,6 +240,55 @@ class App:
             self._close_pause_menu()
             game_screen.skip_level()
 
+    def _from_end_screen(self, screen: EndScreen) -> None:
+        """Play on after the milestone, or save the name and show the
+        highscores."""
+        if screen.keep_playing:
+            self._continue_after_milestone(screen.name)
+            return
+        outcome = screen.outcome
+        if outcome is Outcome.MILESTONE:
+            logger.info(
+                "Game over: stopped at the milestone, score %d, "
+                "level %d, winner", screen.score, screen.level,
+            )
+            outcome = Outcome.WON
+        entry = self._record_score(screen.name, screen.score)
+        self._show_final_highscores(
+            screen.score, outcome, entry, screen.fireworks
+        )
+
+    def _continue_after_milestone(self, name: str) -> None:
+        """Close the milestone screen and go on with the next level.
+
+        Args:
+            name: The name entered there ("" if skipped), kept for the
+                end of the game.
+        """
+        self.screens.pop()
+        game_screen = self.screen
+        assert isinstance(game_screen, GameScreen)
+        game_screen.game.player.name = name
+        logger.info("Playing on after the milestone")
+        game_screen.continue_playing()
+
+    def _record_score(self, name: str, score: int) -> Highscore | None:
+        """Add `score` under `name` to the highscores and save them, if
+        it makes the top 10.
+
+        Returns:
+            The new entry, or None if not kept (or `name` is empty:
+            name entry skipped).
+        """
+        if not name:
+            return None
+        entry = Highscore(name, score)
+        if not makes_top(self.highscores, entry):
+            return None
+        self.highscores = add_score(self.highscores, entry)
+        self._save_highscores(entry)
+        return entry
+
     def _open_cheats(self, in_game: bool) -> None:
         """Push the cheat menu over the current screen.
 
@@ -231,7 +311,7 @@ class App:
     def _show_final_highscores(
         self,
         score: int,
-        won: bool,
+        outcome: Outcome,
         new_entry: Highscore | None,
         fireworks: Fireworks | None = None,
     ) -> None:
@@ -239,17 +319,13 @@ class App:
 
         Args:
             score: The finished game's score.
-            won: Whether the player completed every level.
+            outcome: How it ended: picks the headline and message.
             new_entry: The just-saved entry, highlighted (None if none).
             fireworks: The victory show to carry on, if any.
         """
-        if won:
-            title, message = end_screen.WIN_TITLE, end_screen.WIN_MESSAGE
-        else:
-            title, message = end_screen.LOSE_TITLE, end_screen.LOSE_MESSAGE
         self.screens = [HighscoresScreen(
-            self.highscores, self.renderer, title, message, score,
-            new_entry, fireworks,
+            self.highscores, self.renderer, outcome.title,
+            outcome.message, score, new_entry, fireworks,
         )]
 
     def _load_highscores(self) -> list[Highscore]:

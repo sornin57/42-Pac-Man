@@ -8,19 +8,20 @@ class Player:
     """Pac-Man: position, movement, score, lives and power-up state."""
     def __init__(
         self, config: GameConfig, position: tuple[int, int],
-        name: str = "The best of the best",
+        name: str = "",
     ) -> None:
         """Args:
             config: Loaded game configuration (lives, points).
             position: Spawn cell, the maze center.
-            name: Player name.
+            name: Player name for the highscores; empty until entered
+                (at the win milestone, if the player keeps playing).
         """
         self.name: str = name
         self.position: tuple[int, int] = position
         self.spawn_position: tuple[int, int] = position
         self.score: int = 0
         self.lives: int = config.lives
-        self.powered_up: bool = False  # TODO: maybe should be a timer
+        self.powered_up: bool = False
         self.config: GameConfig = config
         self.direction: Direction | None = None
         self.next_direction: Direction | None = None
@@ -95,11 +96,6 @@ class Player:
         self.position = self.spawn_position
         self.direction = None
         self.next_direction = None
-
-    def gain_life(self) -> None:
-        """Add one life."""
-        self.lives += 1
-        # TODO: maybe add a beating heart animation or sound effect
 
     def power_up(self) -> None:
         """Mark Pac-Man as powered up: ghosts can be eaten."""

@@ -15,20 +15,22 @@ class Game:
             config: Loaded game configuration.
         """
         self.current_level = 0
-        self.cheat_mode = False
         self.config = config
 
         self.level = Level(self.current_level, self.config)
         self.player = Player(self.config, self.level.center)
 
-    def toggle_cheat_mode(self) -> None:
-        """Toggle cheat mode on or off."""
-        self.cheat_mode = not self.cheat_mode
-
     def next_level(self) -> None:
-        """Generate the next level and move the player to its center."""
+        """Generate the next level and move the player to its center.
+
+        Raises:
+            MazeGenerationError: If the maze can't be generated; the
+                game is then left on the level it was on.
+        """
+        # Build first, so a failure changes nothing.
+        level = Level(self.current_level + 1, self.config)
         self.current_level += 1
-        self.level = Level(self.current_level, self.config)
+        self.level = level
 
         self.player.position = self.level.center
         self.player.spawn_position = self.level.center
