@@ -74,6 +74,7 @@ class App:
         self.config = config
         self.renderer = Renderer()
         # Loaded once at game start, saved at game end (subject V.5).
+        self._highscores_load_failed = False
         self.highscores = self._load_highscores()
         self.cheats = Cheats()
         # No Game yet: its maze is generated when Play is chosen.
@@ -338,6 +339,7 @@ class App:
         try:
             scores = load_scores(self.config.highscore_filename)
         except (ValueError, OSError) as error:  # incl. bad JSON/encoding
+            self._highscores_load_failed = True
             logger.error(
                 "Highscores not loaded from %s, starting with none: %s",
                 self.config.highscore_filename, error,
@@ -352,6 +354,11 @@ class App:
         Args:
             new_entry: The entry just added, named in the log.
         """
+        if self._highscores_load_failed:
+            logger.error(
+                "Highscores not saved: the original file could not be read"
+            )
+            return
         path = Path(self.config.highscore_filename)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

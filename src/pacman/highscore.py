@@ -1,5 +1,8 @@
 import json
+import logging
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -24,9 +27,10 @@ def load_scores(path: str) -> list[Highscore]:
         raise ValueError("Highscore file must contain a list")
 
     scores = []
-    for entry in data:
+    for index, entry in enumerate(data):
         if not isinstance(entry, dict):
-            raise ValueError("Invalid highscore entry")
+            logger.error("Highscore entry %d is not an object, skipped", index)
+            continue
 
         name = entry.get("name")
         score = entry.get("score")
@@ -36,9 +40,15 @@ def load_scores(path: str) -> list[Highscore]:
             or len(name) > 10
             or any(not (char.isalnum() or char == " ") for char in name)
         ):
-            raise ValueError("Invalid highscore name")
+            logger.error(
+                "Highscore entry %d has an invalid name, skipped", index
+            )
+            continue
         if type(score) is not int or score < 0:
-            raise ValueError("Invalid highscore score")
+            logger.error(
+                "Highscore entry %d has an invalid score, skipped", index
+            )
+            continue
 
         scores.append(Highscore(name, score))
 

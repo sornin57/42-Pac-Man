@@ -43,15 +43,34 @@ def test_invalid_json_raises_clear_error(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("name", ["", "   ", "bad!", "ABCDEFGHIJK"])
-def test_invalid_saved_name_is_rejected(tmp_path: Path, name: str) -> None:
-    """Do not load names outside the subject's ten-character rule."""
+def test_invalid_saved_name_is_skipped(tmp_path: Path, name: str) -> None:
+    """Skip invalid names without discarding other saved scores."""
     path = tmp_path / "highscores.json"
     path.write_text(
-        f'[{{"name": "{name}", "score": 10}}]', encoding="utf-8"
+        '[{"name": "Good", "score": 20}, '
+        f'{{"name": "{name}", "score": 10}}, '
+        '{"name": "AlsoGood", "score": 5}]',
+        encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="Invalid highscore name"):
-        load_scores(str(path))
+    assert load_scores(str(path)) == [
+        Highscore("Good", 20), Highscore("AlsoGood", 5)
+    ]
+
+
+def test_invalid_entries_are_skipped(tmp_path: Path) -> None:
+    """A bad object or score cannot hide valid highscores."""
+    path = tmp_path / "highscores.json"
+    path.write_text(
+        '[{"name": "Good", "score": 20}, null, '
+        '{"name": "Wrong", "score": true}, '
+        '{"name": "AlsoGood", "score": 5}]',
+        encoding="utf-8",
+    )
+
+    assert load_scores(str(path)) == [
+        Highscore("Good", 20), Highscore("AlsoGood", 5)
+    ]
 
 
 def test_invalid_utf8_raises_clear_error(tmp_path: Path) -> None:
