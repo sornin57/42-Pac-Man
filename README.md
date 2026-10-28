@@ -85,7 +85,8 @@ at startup and saves qualifying scores after the name-entry screen. A player
 who keeps playing after the win is asked for a name only once: the name is
 kept with the player and the score is saved under it when the game ends, so
 one game never adds two rows. Missing or damaged files produce an empty
-table and a log message rather than stopping play.
+table and a log message rather than stopping play; the next saved score
+then replaces the damaged file.
 
 Why this design:
 

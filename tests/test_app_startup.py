@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from pacman.config.models import GameConfig
-from pacman.highscore import Highscore
+from pacman.highscore import Highscore, load_scores
 from pacman.ui import app
 
 
@@ -68,19 +68,17 @@ def test_packaged_launch_uses_editable_config_and_package_directory(
     assert (package_dir / "logs/pacman.log").exists()
 
 
-def test_unreadable_highscores_are_not_overwritten(tmp_path: Path) -> None:
-    """A later score must not replace a damaged highscore file."""
+def test_unreadable_highscores_are_replaced(tmp_path: Path) -> None:
+    """A damaged highscore file is replaced by the next saved score."""
     path = tmp_path / "highscores.json"
     path.write_text("not JSON", encoding="utf-8")
     game_app = object.__new__(app.App)
     game_app.config = GameConfig(highscore_filename=str(path))
-    game_app._highscores_load_failed = False
 
     game_app.highscores = game_app._load_highscores()
     assert game_app.highscores == []
-    assert game_app._highscores_load_failed
 
     game_app.highscores = [Highscore("Mathieu", 100)]
     game_app._save_highscores(game_app.highscores[0])
 
-    assert path.read_text(encoding="utf-8") == "not JSON"
+    assert load_scores(str(path)) == [Highscore("Mathieu", 100)]

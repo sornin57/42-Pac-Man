@@ -60,7 +60,6 @@ def make_app(config: GameConfig, renderer: RecordingRenderer) -> App:
     app.config = config
     app.renderer = cast(Renderer, renderer)
     app.highscores = []
-    app._highscores_load_failed = False
     return app
 
 
